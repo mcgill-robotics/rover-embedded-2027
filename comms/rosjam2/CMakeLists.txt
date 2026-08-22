@@ -37,7 +37,11 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
-add_subdirectory(src)
+# Import Library Versioning Tool
+include(../../other/cmake/version-checker.cmake)
+
+# Import Libraries
+use_lib(src "" ANY)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
