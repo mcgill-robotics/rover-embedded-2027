@@ -14,6 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        submodules: "recursive"
     
     - uses: actions/setup-python@v7
       with:
@@ -30,4 +32,4 @@ jobs:
       run: docker pull ghcr.io/mcgill-robotics/rover-embedded-runner:latest
 
     - name: Find and build targets
-      run: python3 ./Other/repo-management/ProjectDiscovery.py . ghcr.io/mcgill-robotics/rover-embedded-runner:latest
+      run: python3 ./other/repo-management/CMake_CI_Build/ProjectDiscovery.py . ghcr.io/mcgill-robotics/rover-embedded-runner:latest
