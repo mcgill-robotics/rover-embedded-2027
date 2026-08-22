@@ -1,0 +1,28 @@
+name: Build all cmake projects
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.14' 
+
+    # Update images new name  
+
+    - name: Get image
+      run: docker pull ghcr.io/mcgill-robotics/rover-embedded-runner:latest
+
+    - name: Find and build targets
+      run: python3 ./Other/repo-management/ProjectDiscovery.py . ghcr.io/mcgill-robotics/rover-embedded-runner:latest
