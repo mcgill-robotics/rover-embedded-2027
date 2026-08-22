@@ -1,0 +1,3 @@
+[submodule "other/repo-management"]
+	path = other/repo-management
+	url = https://github.com/mcgill-robotics/rover-embedded-automation

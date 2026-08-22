@@ -1,0 +1,35 @@
+name: Build all cmake projects
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: "recursive"
+    
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.14' 
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get image
+      run: docker pull ghcr.io/mcgill-robotics/rover-embedded-runner:latest
+
+    - name: Find and build targets
+      run: python3 ./other/repo-management/CMake_CI_Build/ProjectDiscovery.py . ghcr.io/mcgill-robotics/rover-embedded-runner:latest
