@@ -1,4 +1,4 @@
-name: Build all cmake projects
+name: Build all CMake projects
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 jobs:
 
   build:
+    name: "CMake Build"
 
     runs-on: ubuntu-latest
 
