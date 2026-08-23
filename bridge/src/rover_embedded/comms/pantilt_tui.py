@@ -11,7 +11,7 @@ Any other key forwarded raw to the secondary UART
 import curses
 import sys
 
-from pantilt_firmware import PanTiltGPS
+from rover_embedded.comms.pantilt_firmware import PanTiltGPS
 
 def run():
     port = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
