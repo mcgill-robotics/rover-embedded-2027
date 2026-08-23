@@ -7,12 +7,12 @@ include(../../../other/cmake/version-checker.cmake)
 # Set library information
 set_lib_info("tinygps" 0.1.0)
 
-add_library(tinygps STATIC
+add_library(${LIBRARY_NAME} STATIC
     ${CMAKE_CURRENT_LIST_DIR}/tinygps.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tinyubx.c
 )
 
-target_include_directories(tinygps PUBLIC
+target_include_directories(${LIBRARY_NAME} PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
