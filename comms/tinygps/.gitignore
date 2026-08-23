@@ -1,0 +1,7 @@
+build
+!.settings
+.venv
+__pycache__
+.settings
+.vscode
+.clangd
