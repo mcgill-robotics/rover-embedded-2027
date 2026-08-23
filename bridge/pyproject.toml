@@ -2,7 +2,7 @@
 name = "rover-embedded"
 description = "Python packages defining libraries and APIs to interface with McGill Robotics' rover's boards"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 
 # Dependencies needed for all operation go here
 # Do not put dependencies for internal UI needs that software does not use in here
@@ -32,6 +32,7 @@ Issues = "https://github.com/mcgill-robotics/rover-embedded-2027/issues"
 # Add executable scripts here for things that have a CLI
 [project.scripts]
 power-board-cli = "rover_embedded.power.power_board_cli:main"
+pantilt-ctl = "rover_embedded.comms.pantilt_tui:run"
 
 [build-system]
 requires = ["hatchling >= 1.26"]

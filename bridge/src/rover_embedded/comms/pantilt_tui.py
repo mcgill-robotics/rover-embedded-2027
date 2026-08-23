@@ -13,6 +13,10 @@ import sys
 
 from pantilt_firmware import PanTiltGPS
 
+def run():
+    port = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
+    baud = int(sys.argv[2]) if len(sys.argv) > 2 else 115200
+    curses.wrapper(main, port, baud)
 
 def main(stdscr, port, baud):
     """
@@ -90,6 +94,4 @@ def main(stdscr, port, baud):
 
 
 if __name__ == "__main__":
-    port = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
-    baud = int(sys.argv[2]) if len(sys.argv) > 2 else 115200
-    curses.wrapper(main, port, baud)
+    run()
