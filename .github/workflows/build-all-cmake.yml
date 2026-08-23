@@ -33,4 +33,4 @@ jobs:
       run: docker pull ghcr.io/mcgill-robotics/rover-embedded-runner:latest
 
     - name: Find and build targets
-      run: python3 ./other/repo_management/ci_cmake_discovery/ProjectDiscovery.py . docker ghcr.io/mcgill-robotics/rover-embedded-runner:latest
+      run: python3 ./other/repo_management/ci_cmake_discovery/ProjectDiscovery.py . docker ghcr.io/mcgill-robotics/rover-embedded-runner:latest ./other/repo_management/ci_cmake_discovery/denylist.json
