@@ -1,0 +1,8 @@
+build
+mx.scratch
+!.settings
+.venv
+__pycache__
+.settings
+.vscode
+.clangd
