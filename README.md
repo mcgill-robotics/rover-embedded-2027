@@ -20,7 +20,7 @@ The repo is mostly organized by subsystems in the rover
 
 `arm`: Projects relating to arm control
 
-`comms`: Projecta relating to communication interfaces on the rover(USB, RS-485, CAN, GPS, etc.)
+`comms`: Projects relating to communication interfaces on the rover(USB, RS-485, CAN, GPS, etc.)
 
 `drive`: Projects for drive system controls(Steering, Drive, etc.)
 
