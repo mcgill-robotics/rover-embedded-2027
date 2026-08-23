@@ -15,7 +15,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "If this pull requests updates a library, \
-              remember to update it's version and verify compatibility according \
+              body: "If this pull request updates a library,\
+              remember to update it's version and verify compatibility according\
               to semantic versioning 🙂"
             })
