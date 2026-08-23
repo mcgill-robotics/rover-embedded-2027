@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 enable_language(C CXX ASM)
 
 # Import Library Versioning Tool
-include(../../other/cmake/version-checker.cmake)
+include(../../../other/cmake/version-checker.cmake)
 
 # Set library information
 set_lib_info("tinygps" 0.1.0)
