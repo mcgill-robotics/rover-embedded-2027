@@ -65,6 +65,12 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_FS;
 
 /* USER CODE BEGIN PV */
+// Bridges three UARTs (GPS on USART3, pan/tilt on USART1, terminal on UART4)
+// to a Jetson host over USB CDC, each message framed as COBS([type][payload])
+// (see send_frame()/process_usb_frame()). Each UART uses a double buffer
+// filled by HAL_UARTEx_ReceiveToIdle_IT so reception never has to wait on the
+// main loop; see tinygps/README.md for the same pattern on the GPS UART.
+
 // Define ms between reporting of diagnostic data (valid/error GPS packets received)
 #define DIAG_REPORT_PERIOD_MS 500
 
@@ -80,12 +86,13 @@ gps_t gps;
 #define GPS_BUFFER_SIZE (UBX_MAX_PAYLOAD)
 static uint8_t gps_buffers[2][GPS_BUFFER_SIZE];
 static int buffer_sizes[2];
-static volatile int gps_index = 0;
-static int gps_ready[2] ={0, 0};
+static volatile int gps_index = 0;        // Buffer currently armed for receive
+static int gps_ready[2] = {0, 0}; // Buffers holding bytes not yet run through gps_process()
 
 UART_HandleTypeDef *pantilt_uart = &huart1;
 
-// Pantilt
+// Pantilt expects lines as "pan,tilt\n" (type 'p')
+// Rest is forwarded as type 's' (status) so malformed data is still visible to host
 #define PANTILT_BUFFER_SIZE 100
 static uint8_t pantilt_buffers[2][PANTILT_BUFFER_SIZE];
 static volatile int pantilt_index = 0;
@@ -93,37 +100,38 @@ volatile int pantilt_ready = 0;
 
 UART_HandleTypeDef *term_uart = &huart4;
 
-// Terminal
+// Terminal relayed to/from the host as opaque type 't' payloads
 #define TERM_BUFFER_SIZE 100
 static uint8_t term_buffers[2][TERM_BUFFER_SIZE];
 static volatile int term_index = 0;
 static volatile int term_ready = 0;
 static volatile uint16_t term_size = 0;
 
-// UART board commands
+// Commands from the host over USB
+// Decoded in chunks from USB CDC using COBS until a full command is found
 #define CMD_BUFFER_SIZE 256
 static uint8_t cmd_buf[CMD_BUFFER_SIZE];
 static int cmd_len = 0;
-static bool cmd_overflow = false;
+static bool cmd_overflow = false; // Drop frame if exceeded CMD_BUFFER_SIZE
 static cobs_reader_t usb_cobs_reader;
 static uint8_t usb_chunk[64];
 static uint32_t usb_chunk_len = 0;
 
-// Diagnostic drop/error counters
+// Diagnostic drop/error counters, reported periodically via send_frame('d', ...)
 static volatile uint32_t usb_tx_dropped = 0;
 static volatile uint32_t uart_errors = 0;
 
-// TX ring for a UART relay
-#define TXQ_SIZE 512
-#define TXQ_MASK (TXQ_SIZE - 1)
+// Byte ring buffer for outbound UART data queued while a previous
+#define TXQ_SIZE 512            // Must be power of two
+#define TXQ_MASK (TXQ_SIZE - 1) // Use for heat/tail wrap using bitmask
 
 typedef struct {
   UART_HandleTypeDef *huart;
   uint8_t  buf[TXQ_SIZE];
-  volatile uint16_t head;
-  volatile uint16_t tail;
-  volatile uint16_t inflight;
-  volatile uint8_t  busy;
+  volatile uint16_t head;     // Next free slot to write to
+  volatile uint16_t tail;     // Last unsent byte
+  volatile uint16_t inflight; // Bytes in the current transmit
+  volatile uint8_t  busy;     // Transmit currently in flight
   volatile uint32_t dropped;
 } txq_t;
 
@@ -161,7 +169,8 @@ static int txq_push(txq_t *q, const uint8_t *d, int n) {
   return 1;
 }
 
-// Starts the next transmit chunk if the UART is idle and data is queued. Main loop only.
+// Starts the next transmit chunk if the UART is idle and data is queued for main loop only
+// Only sends up to the end of the array when the data wraps (head < tail), rest on next call
 static void txq_kick(txq_t *q) {
   if (q->busy) return;
   uint16_t head = q->head;
@@ -174,7 +183,8 @@ static void txq_kick(txq_t *q) {
   if (HAL_UART_Transmit_IT(q->huart, &q->buf[tail], len) != HAL_OK) q->busy = 0;
 }
 
-// Sends encoded [type][payload] COBS frame
+// Encodes [type][payload] as one COBS frame and writes it to USB CDC
+// Flushes first to not merge with previous write
 static void send_frame(uint8_t type, const uint8_t *payload, int payload_len) {
   tud_cdc_n_write_flush(USB_CDC_ITF);
   uint8_t raw[CMD_BUFFER_SIZE];
@@ -188,7 +198,9 @@ static void send_frame(uint8_t type, const uint8_t *payload, int payload_len) {
   send_msg_raw((char*)encoded, n);
 }
 
-// Dispatches one decoded [type][payload] USB frame.
+// Dispatches one decoded [type][payload] USB frame from the host
+// - 'p' = line for the pan/tilt UART
+// - 't' = raw bytes for the terminal UART.
 static void process_usb_frame(uint8_t *frame, int len) {
   if (len < 1) return;
   uint8_t type = frame[0];
@@ -271,6 +283,7 @@ int main(void)
   send_frame('s', (uint8_t*) startup_message, strlen(startup_message));
 
   while (1) {
+    // Drain the GPS buffer not currently being filled
     if (gps_ready[0] || gps_ready[1]) {
       int gps_filled_index = (gps_index == 0) ? 1 : 0;
       if (gps_ready[gps_filled_index] != 0){
@@ -308,7 +321,8 @@ int main(void)
       send_frame('d', (uint8_t*)status_payload, status_len);
     }
 
-    // Send pantilt angle reporting to Jetson
+    // Send pantilt angle reporting to Jetson. A valid line is "pan,tilt\n"
+    // Otherwise, send as status message from pantilt
     if (pantilt_ready == 1) {
       int pantilt_filled_index = (pantilt_index == 0) ? 1 : 0;
       char *parsed = (char*)pantilt_buffers[pantilt_filled_index];
@@ -339,6 +353,7 @@ int main(void)
       term_ready = 0;
     }
 
+    // Pull chunk sent over USB CDC into usb_chunk for decode
     if (usb_chunk_len < sizeof(usb_chunk)) {
       usb_chunk_len += tud_cdc_n_read(USB_CDC_ITF, usb_chunk + usb_chunk_len, sizeof(usb_chunk) - usb_chunk_len);
     }
@@ -349,6 +364,7 @@ int main(void)
       cmd_len += usb_cobs_reader.last_written_bytes;
 
       if (r == COBS_INCOMPLETE_FRAME) {
+        // Frame not finished, cmd_len keeps what is currently decoded for next iteration
         usb_chunk_len = 0;
       } else {
         uint32_t consumed = usb_cobs_reader.last_read_bytes;
@@ -358,6 +374,7 @@ int main(void)
           cmd_len = 0;
           cmd_overflow = false;
         } else if (r == COBS_OUTPUT_FULL) {
+          // Frame too big for cmd_buf, drops command
           cmd_len = 0;
           cmd_overflow = true;
         } else if (r == COBS_RESET) {
@@ -365,6 +382,7 @@ int main(void)
           cmd_overflow = false;
         }
 
+        // Shift unconsumed bytes (e.g. frame ending mid-chunk) to the front for next iteration
         uint32_t leftover = usb_chunk_len - consumed;
         if (leftover > 0 && consumed > 0) memmove(usb_chunk, usb_chunk + consumed, leftover);
         usb_chunk_len = leftover;
@@ -681,9 +699,11 @@ int __io_putchar(int ch)
  return(ch);
 }
 
+// Re-arm UART after an error leaves receive un-armed
+// Also clears busy flag so a transmit error doesn't break UART transmit
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart){
   uart_errors++;
-  
+
   if (huart == gps.huart) {
     HAL_UARTEx_ReceiveToIdle_IT(gps.huart, gps_buffers[gps_index], GPS_BUFFER_SIZE);
   }
@@ -698,6 +718,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart){
   }
 }
 
+// Fires when a buffer fills or the line goes idle
+// Marks it ready, swaps buffer, and re-arms UART receive
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
   if (huart == pantilt_uart) {
     pantilt_index = (pantilt_index == 0) ? 1 : 0;
@@ -716,6 +738,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
   }
 }
 
+// Advances tail past the chunk that just finished sending and clears busy
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
   txq_t *q;
   if (huart == pantilt_uart) q = &pantilt_txq;

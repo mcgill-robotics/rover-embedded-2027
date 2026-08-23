@@ -119,7 +119,7 @@ static int _choldc1(_float_t * a, _float_t * p, const int n)
         }
     }
 
-    return 0; // success:w
+    return 0; // success
 }
 
 /// @private

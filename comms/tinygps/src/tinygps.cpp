@@ -473,13 +473,16 @@ void TinyGPSPlus::insertCustom(TinyGPSCustom *pElt, const char *sentenceName,
   *ppelt = pElt;
 }
 
-// 2x2 Kalman filter used for latitude/longitude
-// R value is determined from GPS accuracy measurements
+// 2x2 Kalman filter smoothing latitude/longitude across fixes
+// - State x = [lat, lon], modeled as static
+// - Q_VAL is the tuning knob (see ../README.md)
+// - R is derived from the receiver's reported accuracy
 static void apply_ekf(gps_t *g, float hAcc_m) {
     // Change Q value to average out more or less
     static const float Q_VAL = 1e-10f;
-    static const float DEG_PER_M = 1.0f / 111111.0f;
+    static const float DEG_PER_M = 1.0f / 111111.0f; // ~meters per degree of lat/lon
 
+    // Start at first fix instead of (0.0, 0.0) state
     if (g->ekf.x[0] == 0.0f) {
         g->ekf.x[0] = (float)g->snapshot.lat;
         g->ekf.x[1] = (float)g->snapshot.lon;
@@ -494,6 +497,8 @@ static void apply_ekf(gps_t *g, float hAcc_m) {
     float z[2]  = { (float)g->snapshot.lat, (float)g->snapshot.lon };
     float hx[2] = { g->ekf.x[0], g->ekf.x[1] };
     float H[4]  = { 1,0, 0,1 };
+
+    // R (measurement noise variance), converted from meters to degrees.
     float sigma = hAcc_m * DEG_PER_M;
     float r     = sigma * sigma;
     float R[4]  = { r,0, 0,r };
@@ -504,6 +509,7 @@ static void apply_ekf(gps_t *g, float hAcc_m) {
     }
 }
 
+// C wrapper exposed to firmware (tinygps.h)
 extern "C" {
 
 void gps_init(gps_t *g, int type, UART_HandleTypeDef *huart, bool use_ekf) {
@@ -513,7 +519,7 @@ void gps_init(gps_t *g, int type, UART_HandleTypeDef *huart, bool use_ekf) {
     g->use_ekf     = use_ekf;
     memset(&g->ubx, 0, sizeof(g->ubx));
 
-    // Old NMEA GPS runs at 9600 baud while new GPS M10G-5883 module runs at 115200 baud
+    // Old NMEA GPS runs at 9600 baud while new GPS M10G-5883 module runs at 115200 baud.
     huart->Init.BaudRate = (type == GPS_UBX) ? 115200 : 9600;
     HAL_UART_Init(huart);
 
@@ -530,9 +536,10 @@ bool gps_process(gps_t *g, uint8_t byte) {
     if (g->type == GPS_UBX) {
         ubx_nav_pvt_t pvt;
         if (!ubx_process(&g->ubx, &pvt, byte)) return false;
-        
-        // Check for succesful fix
+
+        // fixType < 2 does not represent a real or reliable satellite fix
         if (pvt.fixType < 2 || !(pvt.flags & 0x01)) return false;
+        // Convert from u-blox's fixed-point wire format (scales documented on ubx_nav_pvt_t in tinyubx.h).
         g->snapshot.lat     = pvt.lat     * 1e-7;
         g->snapshot.lon     = pvt.lon     * 1e-7;
         g->snapshot.alt     = pvt.hMSL    * 1e-3;
@@ -540,11 +547,11 @@ bool gps_process(gps_t *g, uint8_t byte) {
         g->snapshot.headMot = pvt.headMot * 1e-5;
         g->snapshot.numSV   = pvt.numSV;
         g->snapshot.fixType = pvt.fixType;
-        if (g->use_ekf) apply_ekf(g, pvt.hAcc * 1e-3f);
+        if (g->use_ekf) apply_ekf(g, pvt.hAcc * 1e-3f); // hAcc is mm; apply_ekf wants meters
     } else {
         TinyGPSPlus *nmea = (TinyGPSPlus *)g->nmea;
 
-        // Check for succesful fix
+        // Check for successful fix
         if (!nmea->encode((char)byte) || !nmea->location.isValid()) return false;
         g->snapshot.lat     = nmea->location.lat();
         g->snapshot.lon     = nmea->location.lng();
@@ -553,8 +560,8 @@ bool gps_process(gps_t *g, uint8_t byte) {
         g->snapshot.headMot = nmea->course.deg();
         g->snapshot.numSV   = (int)nmea->satellites.value();
         g->snapshot.fixType = (nmea->location.FixQuality() != TinyGPSLocation::Invalid) ? 3 : 0;
-        // Get an estimate of accuracy on NMEA using the HDOP value
-        // Estimate each value for dilution of precision is equivalent to 5 m
+        // No direct accuracy field in NMEA
+        // Approximate from HDOP (~5 m per unit), else assume 10 m.
         if (g->use_ekf) {
             float hAcc_m = nmea->hdop.isValid() ? (nmea->hdop.value() / 100.0f) * 5.0f : 10.0f;
             apply_ekf(g, hAcc_m);
@@ -566,6 +573,7 @@ bool gps_process(gps_t *g, uint8_t byte) {
 
 bool gps_read_snapshot(gps_t *g, gps_data_t *out) {
     if (!g->frame_ready) return false;
+    // Disable IRQ during copy since an ISR write could break it
     __disable_irq();
     g->frame_ready = false;
     *out = g->snapshot;
@@ -592,6 +600,7 @@ bool gps_read_combined(gps_t *a, gps_t *b, gps_data_t *out) {
     if (!ok_a) { *out = db; return true; }
     if (!ok_b) { *out = da; return true; }
 
+    // Weight by satellite count
     float wa = (float) da.numSV;
     float wb = (float) db.numSV;
     float wt = wa + wb;

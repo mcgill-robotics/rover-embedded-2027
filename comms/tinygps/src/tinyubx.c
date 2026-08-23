@@ -5,6 +5,8 @@ extern "C" {
 #include "tinyubx.h"
 #include <string.h>
 
+// Runs one byte through the UBX frame state machine
+// ck_a/ck_b accumulate the UBX checksum (ck_a += byte; ck_b += ck_a) from msg_class through payload.
 static bool ubx_parser_feed(ubx_parser_t *p, uint8_t byte) {
     switch (p->state) {
     case UBX_STATE_SYNC1:
@@ -18,6 +20,8 @@ static bool ubx_parser_feed(ubx_parser_t *p, uint8_t byte) {
             p->ck_b = 0;
             p->state = UBX_STATE_CLASS;
         } else if (byte != UBX_SYNC1) {
+            // Not SYNC2 and not another SYNC1: give up and hunt for SYNC1.
+            // A repeated SYNC1 stays here so back-to-back 0xB5 bytes don't desync the parser.
             p->state = UBX_STATE_SYNC1;
         }
         break;
@@ -56,6 +60,7 @@ static bool ubx_parser_feed(ubx_parser_t *p, uint8_t byte) {
     case UBX_STATE_PAYLOAD:
         p->ck_a = (uint8_t)(p->ck_a + byte);
         p->ck_b = (uint8_t)(p->ck_b + p->ck_a);
+        // Skip storing since oversized, but still count so the parser stays framed to the real checksum.
         if (!p->oversized) p->payload[p->count] = byte;
         if (++p->count >= p->length) p->state = UBX_STATE_CK_A;
         break;

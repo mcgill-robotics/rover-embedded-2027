@@ -8,6 +8,11 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+// Byte-at-a-time parser for u-blox's UBX binary protocol, decoding only the NAV-PVT message (position, velocity, time). 
+// - Frame layout: [SYNC1][SYNC2][class][id][len_lo][len_hi][payload...][ck_a][ck_b]
+// - ck_a/ck_b are an 8-bit running checksum over class
+// - ubx_nav_pvt_t mirrors the NAV-PVT payload byte-for-byte
+
 #define UBX_MAX_PAYLOAD 128
 
 #define UBX_SYNC1 0xB5
@@ -32,14 +37,14 @@ typedef struct {
     ubx_state_t state;
     uint8_t  msg_class;
     uint8_t  msg_id;
-    uint16_t length;
-    uint16_t count;
-    bool     oversized;
+    uint16_t length;          // Payload length declared by the frame header
+    uint16_t count;           // Payload bytes consumed so far
+    bool     oversized;       // length > UBX_MAX_PAYLOAD, bytes counted but not stored
     uint8_t  ck_a, ck_b;
     uint8_t  payload[UBX_MAX_PAYLOAD];
-    uint32_t frames_ok;
-    uint32_t frames_crc_err;
-    uint32_t frames_oversize;
+    uint32_t frames_ok;       // Passed checksum and fit in payload[]
+    uint32_t frames_crc_err;  // Failed the ck_a/ck_b check
+    uint32_t frames_oversize; // Declared length exceeded UBX_MAX_PAYLOAD
 } ubx_parser_t;
 
 typedef struct __attribute__((packed)) {
@@ -53,8 +58,8 @@ typedef struct __attribute__((packed)) {
     uint8_t  valid;
     uint32_t tAcc;    // ns
     int32_t  nano;    // ns -1e9-1e9
-    uint8_t  fixType;
-    uint8_t  flags;
+    uint8_t  fixType; // 0=no fix, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS+DR, 5=time only
+    uint8_t  flags;   // bit 0 = gnssFixOK (fix considered valid by the receiver)
     uint8_t  flags2;
     uint8_t  numSV;
     int32_t  lon;     // deg * 1e-7
@@ -78,6 +83,8 @@ typedef struct __attribute__((packed)) {
     uint16_t magAcc;  // deg * 1e-2
 } ubx_nav_pvt_t;
 
+// Feeds one byte into the parser, returns true only on a checksum-valid
+// NAV-PVT frame of exactly sizeof(ubx_nav_pvt_t) bytes, with *data filled in.
 bool ubx_process(ubx_parser_t *p, ubx_nav_pvt_t *data, uint8_t byte);
 
 #ifdef __cplusplus
