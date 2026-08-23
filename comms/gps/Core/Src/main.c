@@ -65,11 +65,8 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_FS;
 
 /* USER CODE BEGIN PV */
-// Bridges three UARTs (GPS on USART3, pan/tilt on USART1, terminal on UART4)
-// to a Jetson host over USB CDC, each message framed as COBS([type][payload])
-// (see send_frame()/process_usb_frame()). Each UART uses a double buffer
-// filled by HAL_UARTEx_ReceiveToIdle_IT so reception never has to wait on the
-// main loop; see tinygps/README.md for the same pattern on the GPS UART.
+// Bridges three UARTs (GPS on USART3, pantilt on USART1, and terminal on UART4)
+// to a host over USB CDC, with each message framed as COBS([type][payload])
 
 // Define ms between reporting of diagnostic data (valid/error GPS packets received)
 #define DIAG_REPORT_PERIOD_MS 500
