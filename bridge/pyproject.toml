@@ -1,0 +1,43 @@
+[project]
+name = "rover-embedded"
+description = "Python packages defining libraries and APIs to interface with McGill Robotics' rover's boards"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# Dependencies needed for all operation go here
+# Do not put dependencies for internal UI needs that software does not use in here
+# See optional-dependencies instead
+dependencies = [
+	"python-can>=4.0", 
+	"pyserial>=3.5"
+	]
+
+# See [tool.hatch.metadata.hooks.custom] for version
+dynamic = [ "version" ]
+
+# Add dependencies for UI and other internal use here
+[project.optional-dependencies]
+gui = [
+	"fastapi[standard]>=0.141.1", 
+	"flask>=3.1.3"
+	]
+all = ["rover-embedded[gui]"]
+
+[project.urls]
+Homepage = "https://github.com/mcgill-robotics/rover-embedded-2027"
+Documentation = "https://mcgill-robotics.github.io/rover-documentation/"
+Repository = "https://github.com/mcgill-robotics/rover-embedded-2027"
+Issues = "https://github.com/mcgill-robotics/rover-embedded-2027/issues"
+
+# Add executable scripts here for things that have a CLI
+[project.scripts]
+power-board-cli = "rover_embedded.power.power_board_cli:main"
+
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+# Custom versioning tool that adds build metadata
+# See hatch_build.py in the same folder
+[tool.hatch.metadata.hooks.custom]
+version = "0.1.0"

@@ -28,7 +28,7 @@ The repo is mostly organized by subsystems in the rover
 
 `science`: Projects relating to electrical support tasks for the science division (science board)
 
-`bridge`: Python packages to communicate between our firmware and our software division's ROS and MQTT services.
+`bridge`: Packaged scripts and libraries. These often are used to communicate between our computers and various boards over USB or CAN. The code in here can be both used for internal use or for use by the software division's controls.
 
 `examples`: Example projects used for tutorials and for quick testing on custom board bring-up.
 
