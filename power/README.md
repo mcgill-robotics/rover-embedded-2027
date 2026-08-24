@@ -4,4 +4,4 @@ This directory contains our embedded code for monitoring and electronically cont
 
 ## Projects
 
-🚧 Under construction
+`status_display`: Monitoring and displaying current and voltage status of the various power rails on the Power Board.

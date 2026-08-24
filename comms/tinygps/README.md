@@ -1,6 +1,6 @@
 # TinyGPS STM32 Port
 
-C/C++ GPS library port of TinyGPS for STM32G4 (HAL). Supports both UXB-NAV-PVT and standard NMEA GPS protocols.
+C/C++ GPS library port of [TinyGPSPlus](https://github.com/mikalhart/TinyGPSPlus) for STM32G4 (HAL). Supports both UBX-NAV-PVT and standard NMEA GPS protocols.
 
 ---
 
