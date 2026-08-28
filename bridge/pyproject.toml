@@ -9,7 +9,7 @@ requires-python = ">=3.13"
 # See optional-dependencies instead
 dependencies = [
 	"python-can>=4.0", 
-	"pyserial>=3.5"
+	"pyserial>=3.5",
 	]
 
 # See [tool.hatch.metadata.hooks.custom] for version
@@ -19,7 +19,7 @@ dynamic = [ "version" ]
 [project.optional-dependencies]
 gui = [
 	"fastapi[standard]>=0.141.1", 
-	"flask>=3.1.3"
+	"flask>=3.1.3",
 	]
 all = ["rover-embedded[gui]"]
 
@@ -33,6 +33,11 @@ Issues = "https://github.com/mcgill-robotics/rover-embedded-2027/issues"
 [project.scripts]
 power-board-cli = "rover_embedded.power.power_board_cli:main"
 pantilt-ctl = "rover_embedded.comms.pantilt_tui:run"
+
+# Arm scripts
+arm-esc-logger = "rover_embedded.arm.scripts.can_logger:main"
+arm-esc-dashboard = "rover_embedded.arm.scripts.can_dashboard:main"
+
 
 [build-system]
 requires = ["hatchling >= 1.26"]
