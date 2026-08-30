@@ -1,3 +1,6 @@
 [submodule "other/repo_management"]
 	path = other/repo_management
 	url = https://github.com/mcgill-robotics/rover-embedded-automation
+[submodule "comms/rosjam2/libs/tinyusb"]
+	path = comms/rosjam2/libs/tinyusb
+	url = https://github.com/hathach/tinyusb

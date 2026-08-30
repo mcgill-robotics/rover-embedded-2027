@@ -20,7 +20,7 @@ The repo is mostly organized by subsystems in the rover
 
 `arm`: Projects relating to arm control
 
-`comms`: Projecta relating to communication interfaces on the rover(USB, RS-485, CAN, GPS, etc.)
+`comms`: Projects relating to communication interfaces on the rover(USB, RS-485, CAN, GPS, etc.)
 
 `drive`: Projects for drive system controls(Steering, Drive, etc.)
 
@@ -28,7 +28,7 @@ The repo is mostly organized by subsystems in the rover
 
 `science`: Projects relating to electrical support tasks for the science division (science board)
 
-`bridge`: Python packages to communicate between our firmware and our software division's ROS and MQTT services.
+`bridge`: Packaged scripts and libraries. These often are used to communicate between our computers and various boards over USB or CAN. The code in here can be both used for internal use or for use by the software division's controls.
 
 `examples`: Example projects used for tutorials and for quick testing on custom board bring-up.
 
@@ -46,4 +46,4 @@ To keep the repo nice and organized so its easy to work in, please try to follow
 
 Most of our projects are built using STM32CubeIDEs integrated build system and thus requires it for builds. Some select projects may use CMake as the build system and are compatible with any IDE supporting CMake or the command line for builds. Within the team, VSCode and STM32CubeIDE are used for these projects. A few legacy systems using Arduino cores rely on PlatformIO for builds. These are typically built by us using VSCode.
 
-For our Python scripts, common dependencies are [pyserial](https://github.com/pyserial/pyserial) and [python-can](https://python-can.readthedocs.io/en/stable/). More details on exact dependencies can be found in project READMEs. Most scripts support both Linux and Windows as they are deployed on Linux for the rover and a majoritu of members use Windows on rheir development machines. MacOS should also be supported but is less tested as it is more uncommon in the team.
+For our Python scripts, common dependencies are [pyserial](https://github.com/pyserial/pyserial) and [python-can](https://python-can.readthedocs.io/en/stable/). More details on exact dependencies can be found in project READMEs. Most scripts support both Linux and Windows as they are deployed on Linux for the rover and a majority of members use Windows on their development machines. MacOS should also be supported but is less tested as it is more uncommon in the team.

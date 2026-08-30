@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.22)
+
 # This file defines functions to be used in CmakeLists.txt
 # to help version internal libraries within the rover-embedded monorepo
 # It also handles third party libraries by ignoring versioning and

@@ -6,4 +6,6 @@ This directory contains embedded code for control of the brushed and brushless m
 
 ## Projects
 
-🚧 Under construction
+`brushed_board_firmware`: Firmware for the Arm Brushed Board that controls the 
+end effector.
+

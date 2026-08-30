@@ -4,4 +4,4 @@ This directory contains the embedded code used with the science board and other 
 
 # Projects
 
-🚧 Under construction
+`science_box_firmware`: Firmware for the science board to collect sensor data on the rover.
