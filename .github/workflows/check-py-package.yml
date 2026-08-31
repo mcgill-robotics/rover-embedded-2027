@@ -33,7 +33,7 @@ jobs:
       run: source ../test-env/.venv/bin/activate
 
     - name: Install package in test environment
-      run: python3 -m pip install ./bridge
+      run: python3 -m pip install "./bridge[all]"
 
     - name: Run import
       run: python3 ../test-env/import.py
