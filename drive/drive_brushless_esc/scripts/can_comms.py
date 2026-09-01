@@ -4,7 +4,7 @@ if __name__ == "__main__":
 
     # Example usage
     # print(can.interface.detect_available_configs())
-    station = drive_can.CANStation(interface="slcan", channel="COM6", bitrate=500000) #channel must be 0 as zig
+    station = drive_can.CANStation(interface="slcan", channel="COM9", bitrate=500000) #channel must be 0 as zig
 
     # Create an ESCs class
     escInterface = drive_can.ESCInterface(station)
@@ -14,12 +14,12 @@ if __name__ == "__main__":
 
 
     ## CODE BELOW HERE
-    # drive.stop_motor(NodeID.LF_DRIVE)
-
-    # drive.run_motor(NodeID.LF_DRIVE, 1500)
-    # drive.read_all_faults(NodeID.LF_DRIVE)
-    # drive.stop_motor(NodeID.LF_DIVE)
-
+    # drive.stop_motor(drive_can.NodeID.LF_DRIVE)
     
-    station.recv_msg(0.01)
+    # drive.run_motor(drive_can.NodeID.RF_DRIVE, 1500)
+    # drive.read_all_faults(drive_can.NodeID.LF_DRIVE)
+    # drive.stop_motor(drive_can.NodeID.LF_DIVE)
+
+    drive.ping_motor(drive_can.NodeID.RB_DRIVE)
+    station.recv_msg(0.1)
     station.close()

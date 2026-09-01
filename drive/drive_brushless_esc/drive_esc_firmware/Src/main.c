@@ -234,11 +234,29 @@ int main(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);  // Ensure LED is off at startup
 
 
-  	////////////////////////////////////////////////////////////////////////////////////////////////////////
-     uart_debug_print("UART is initialized and ready to go\r\n");
-  	 uart_debug_print("ESC ID is set to: %d\r\n", (int)ESC_ID);
-  	////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    uart_debug_print("UART is initialized and ready to go\r\n");
+    uart_debug_print("ESC ID is set to: %d\r\n", (int)ESC_ID);
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////
+  FDCAN_FilterTypeDef sFilterConfig;
+  sFilterConfig.IdType = FDCAN_STANDARD_ID;
+  sFilterConfig.FilterIndex = 0;
+  sFilterConfig.FilterType = FDCAN_FILTER_MASK;
+  sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+  sFilterConfig.FilterID1 = 0x000;        // Accept everything
+  sFilterConfig.FilterID2 = 0x000;
 
+  if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK) {
+      Error_Handler();
+  }
+
+  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
+      Error_Handler();
+  }
+
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+      Error_Handler();
+  }
 
   /* USER CODE END 2 */
 
