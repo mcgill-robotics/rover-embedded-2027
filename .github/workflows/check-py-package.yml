@@ -1,0 +1,41 @@
+name: Check Python Package
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    name: "Check Package"
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        submodules: "recursive"
+    
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.14' 
+
+    - name: Create test environment
+      run: mkdir ../test-env && python3 -m venv ../test-env/.venv 
+      
+    - name: Add dependencies for pygame builds
+      run: sudo apt-get install libsdl2-dev 
+
+    - name: Generate import file
+      run: python3 ./other/repo_management/py_package_checker/py_package_checker.py ./bridge ../test-env/import.py
+
+    - name: Setup test environment
+      run: source ../test-env/.venv/bin/activate
+
+    - name: Install package in test environment
+      run: python3 -m pip install "./bridge[all]"
+
+    - name: Run import
+      run: python3 ../test-env/import.py
