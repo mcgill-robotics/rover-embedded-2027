@@ -76,7 +76,7 @@ DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
-int ESC_ID = RB_CAN_ID; // CHANGE THIS ID FOR EACH ESC THAT IS CONNECTED TO THE DRIVE SYSTEM!
+int ESC_ID = RF_CAN_ID; // CHANGE THIS ID FOR EACH ESC THAT IS CONNECTED TO THE DRIVE SYSTEM!
 volatile bool received_CAN_command = false;
 FDCAN_RxHeaderTypeDef rxHeader;
 uint8_t rxData[8];
@@ -250,13 +250,15 @@ int main(void)
       Error_Handler();
   }
 
-  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
+
+    if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
       Error_Handler();
   }
 
-  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
       Error_Handler();
   }
+
 
   /* USER CODE END 2 */
 
@@ -775,25 +777,7 @@ static void MX_FDCAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN FDCAN1_Init 2 */
-    FDCAN_FilterTypeDef sFilterConfig;
-    sFilterConfig.IdType = FDCAN_STANDARD_ID;
-    sFilterConfig.FilterIndex = 0;
-    sFilterConfig.FilterType = FDCAN_FILTER_MASK;
-    sFilterConfig.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
-    sFilterConfig.FilterID1 = 0x000;        // Accept everything
-    sFilterConfig.FilterID2 = 0x000;
 
-    if (HAL_FDCAN_ConfigFilter(&hfdcan1, &sFilterConfig) != HAL_OK) {
-        Error_Handler();
-    }
-
-    if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
-        Error_Handler();
-    }
-
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
-        Error_Handler();
-    }
   /* USER CODE END FDCAN1_Init 2 */
 
 }
