@@ -26,7 +26,7 @@ jobs:
       run: mkdir ../test-env && python3 -m venv ../test-env/.venv 
       
     - name: Add dependencies for pygame builds
-      run: sudo apt-get install libsdl2-dev 
+      run: sudo apt update && sudo apt-get install libsdl2-dev 
 
     - name: Generate import file
       run: python3 ./other/repo_management/py_package_checker/py_package_checker.py ./bridge ../test-env/import.py
