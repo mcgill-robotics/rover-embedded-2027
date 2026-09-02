@@ -9,3 +9,5 @@ This directory contains embedded code for control of the brushed and brushless m
 `brushed_board_firmware`: Firmware for the Arm Brushed Board that controls the 
 end effector.
 
+`arm_brushless_esc`: Firmware for the ESCs controlling each of the BLDC powered
+joints on the arm (waist, shoulder, elbow)
