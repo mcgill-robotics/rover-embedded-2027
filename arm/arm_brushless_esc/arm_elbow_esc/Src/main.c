@@ -114,8 +114,8 @@ static void MX_OPAMP2_Init(void);
 static void MX_OPAMP3_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM4_Init(void);
-static void MX_FDCAN1_Init(void);
 static void MX_TIM6_Init(void);
+static void MX_FDCAN1_Init(void);
 static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 // Function from can_processing.c
@@ -168,9 +168,9 @@ int main(void)
   MX_OPAMP3_Init();
   MX_TIM1_Init();
   MX_TIM4_Init();
+  MX_TIM6_Init();
   MX_MotorControl_Init();
   MX_FDCAN1_Init();
-  MX_TIM6_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -179,13 +179,13 @@ int main(void)
   	/* Initialize trajectory planner*/
   	plannerInit();
 
-  	/* Initialize velocity controller (static alloc) */
+  	// /* Initialize velocity controller (static alloc) */
   	velCtrlInitStatic(&velCtrl_buffer, 0.0f);  // your refactored init
 
-  	/* Initialize calibration subsystem */
+  	// /* Initialize calibration subsystem */
   	Calibration_Init();
 
-    /* Start in idle, CAN commands will switch to POSITION or VELOCITY */
+    // /* Start in idle, CAN commands will switch to POSITION or VELOCITY */
     controlMode = MODE_IDLE;
 
 	// Enable interrupts:
@@ -195,11 +195,11 @@ int main(void)
 	HAL_NVIC_SetPriority(FDCAN1_IT1_IRQn, 5, 0);
 	HAL_NVIC_EnableIRQ(FDCAN1_IT1_IRQn);
 
-	/* Enable TIM6 interrupt */
+	// /* Enable TIM6 interrupt */
 	HAL_NVIC_SetPriority(TIM6_DAC_IRQn, 6, 0);
 	HAL_NVIC_EnableIRQ(TIM6_DAC_IRQn);
 
-	  /* Enable EXTI interrupts for limit switches */
+	//   /* Enable EXTI interrupts for limit switches */
 	  HAL_NVIC_SetPriority(EXTI3_IRQn, 4, 0);   /* higher priority than CAN */
 	  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
