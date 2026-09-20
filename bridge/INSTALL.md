@@ -106,7 +106,7 @@ uv add --no-build-isolation <path to package>
 **Optional Features**
 
 ```sh
-uv add <path to package> --group <extra name>
+uv add <path to package> --extra <extra name>
 ```
 
 **Editable**
