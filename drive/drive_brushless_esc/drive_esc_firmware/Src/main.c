@@ -76,7 +76,7 @@ DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
-int ESC_ID = RF_CAN_ID; // CHANGE THIS ID FOR EACH ESC THAT IS CONNECTED TO THE DRIVE SYSTEM!
+int ESC_ID = LB_CAN_ID; // CHANGE THIS ID FOR EACH ESC THAT IS CONNECTED TO THE DRIVE SYSTEM!
 volatile bool received_CAN_command = false;
 FDCAN_RxHeaderTypeDef rxHeader;
 uint8_t rxData[8];
