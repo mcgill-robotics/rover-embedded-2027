@@ -405,59 +405,11 @@ void runSingleMotorV2(float newSpeed){
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	  if (fabsf(speedCmd) > SPEED_ZERO_THR && speedError > STALL_ERROR_THRESHOLD) {
-
-	        uint32_t now = HAL_GetTick();
-
-	        if (s_stallStartTick == 0) {
-	            s_stallStartTick = now;
-	            uart_debug_print("Stall detected - starting stall timer\r\n");
-	        }
-
-	        uint32_t stallDuration = now - s_stallStartTick;
-
-	        if (stallDuration > STALL_TIMEOUT_MS) {
-	            uart_debug_print("Stall timeout reached - backing off\r\n");
-	            s_stallStartTick = 0;
-	            safeStopMotor(currentSpeed, RUN);
-	            return;
-	        }
-
-	        uart_debug_print("Applying torque boost, stalled for %d ms\r\n", (int)stallDuration);
-
-	        MCI_ExecTorqueRamp_F(pMCI[0],
-	            (speedCmd > 0) ? TORQUE_BOOST_A : -TORQUE_BOOST_A,
-	            TORQUE_BOOST_RAMP_MS); //apply the torque boost for 150ms
-	        HAL_Delay(300); //wait for ramp down
-
-	        // Hand back to speed mode
-	        MCI_ExecSpeedRamp_F(pMCI[0], speedCmd, myRampTime);
-
-	    } else {
-
-	        if (s_stallStartTick != 0) {
-	            // Was stalling - only clear the timer if we've recovered enough
-	            if (speedError < STALL_RECOVERY_THRESHOLD) {
-	                uart_debug_print("Wheel recovered from stall\r\n");
-	                s_stallStartTick = 0;
-	            } else {
-	                // Still in the hysteresis band (between 100-200 RPM error)
-	                // keep boosting but DONT reset the timer
-	                uart_debug_print("In hysteresis band, continuing boost\r\n");
-	                MCI_ExecTorqueRamp_F(pMCI[0],
-	                    (speedCmd > 0) ? TORQUE_BOOST_A : -TORQUE_BOOST_A,
-	                    TORQUE_BOOST_RAMP_MS);
-	                HAL_Delay(300);
-	                MCI_ExecSpeedRamp_F(pMCI[0], speedCmd, myRampTime);
-	                s_previousDirection = (speedCmd > 0) ? 1 : -1;
-	                g_lastCommandedSpeed = speedCmd;
-	                return;
-	            }
-	        }
-	        MC_ProgramSpeedRampMotor1_F(speedCmd, myRampTime);
-	    }
-	    s_previousDirection = (speedCmd > 0) ? 1 : -1;
-	    g_lastCommandedSpeed = speedCmd;
+	  
+	MC_ProgramSpeedRampMotor1_F(speedCmd, myRampTime);
+	
+	s_previousDirection = (speedCmd > 0) ? 1 : -1;
+	g_lastCommandedSpeed = speedCmd;
 }
 
 
