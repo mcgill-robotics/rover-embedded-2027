@@ -1,5 +1,5 @@
 import time
-import cobs
+import rover_embedded.comms.cobs_py
 import serial
 
 # Change this to the lits of wanted UARTs to test
