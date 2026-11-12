@@ -1,10 +1,11 @@
 #include "command_parser.h"
 #include "string.h"
 #include <stdint.h>
+
 /**
  * Returns bytes read
  */
-int parse(char* message, int available, command_t* command){
+int parse(unsigned char* message, int available, command_t* command){
 	if (available<5){
 		return 0;
 	}

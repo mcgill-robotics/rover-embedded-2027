@@ -6,7 +6,6 @@ set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project("rosjam2" VERSION 0.1.1)
 enable_language(C CXX ASM)
 
 #Import Git Helper

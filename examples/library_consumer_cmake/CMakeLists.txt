@@ -41,8 +41,8 @@ add_subdirectory(cmake/stm32cubemx)
 include(../../other/cmake/version-checker.cmake)
 
 # Import Libraries
-use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../library_command_parser/src 0.1.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/lib_command_parser_build")
-use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../library_uart_handler/src 0.1.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/lib_uart_handler_build")
+use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../library_command_parser 0.1.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/lib_command_parser_build")
+use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../library_uart_handler 0.1.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/lib_uart_handler_build")
 
 
 # Link directories setup
