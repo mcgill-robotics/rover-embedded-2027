@@ -7,13 +7,15 @@ set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+project("cobs-c" VERSION 0.2.0)
+
 enable_language(C CXX ASM)
 
 # Import Library Versioning Tool
 include(../../other/cmake/version-checker.cmake)
 
 # Set library information
-set_lib_info("cobs-c" 0.2.0)
+set_lib_info("cobs-c"  0.2.0)
 
 # Create static library
 add_library(${LIBRARY_NAME} STATIC)
@@ -38,7 +40,7 @@ target_link_libraries(${LIBRARY_NAME}
 
 # Prevent Running GoogleTest when compiling for embedded targets
 if(CMAKE_CROSSCOMPILING STREQUAL FALSE)
-project()
+
 set(GTEST_EXECUTABLE_NAME cobs-test)
 # Add GoogleTest
 include(FetchContent)

@@ -6,6 +6,7 @@ set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+project("rosjam2" VERSION 0.1.1)
 enable_language(C CXX ASM)
 
 #Import Git Helper
@@ -15,7 +16,7 @@ include(../../other/cmake/git-helper.cmake)
 include(../../other/cmake/version-checker.cmake)
 
 # Set library information
-set_lib_info("rosjam2" 0.1.0)
+set_lib_info("rosjam2" 0.2.0)
 
 # Create static library
 add_library(${LIBRARY_NAME} STATIC)
