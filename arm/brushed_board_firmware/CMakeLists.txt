@@ -41,7 +41,7 @@ add_subdirectory(cmake/stm32cubemx)
 include(../../other/cmake/version-checker.cmake)
 
 # Import Libraries
-use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../../comms/rosjam2/src 0.1.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/Rosjam2_build")
+use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../../comms/rosjam2 0.2.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/Rosjam2_build")
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
