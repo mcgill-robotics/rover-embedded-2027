@@ -21,10 +21,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "CAN_processing.h"
+//#include "CAN_processing.h"
 #include <stdbool.h>
 #include "stdio.h"
 #include "uart_debugging.h"
+#include "can_telemetry.h"
+#include "esc_sensors.h"
 
 /* USER CODE END Includes */
 
@@ -40,7 +42,8 @@
 #define LF_CAN_ID 1
 #define LB_CAN_ID 2
 #define RB_CAN_ID 3
-#define MAX_CAN_BUFFERED_MSGS 5 // number of CAN messages that are buffered
+//this is not actually used rn: current implementation only takes the last msg received
+// #define MAX_CAN_BUFFERED_MSGS 5 // number of CAN messages that are buffered
 
 /* USER CODE END PD */
 
@@ -69,6 +72,7 @@ OPAMP_HandleTypeDef hopamp3;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim6;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_rx;
@@ -76,8 +80,13 @@ DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
-int ESC_ID = LB_CAN_ID; // CHANGE THIS ID FOR EACH ESC THAT IS CONNECTED TO THE DRIVE SYSTEM!
+uint8_t ESC_ID = LB_CAN_ID; // CHANGE THIS ID FOR EACH ESC THAT IS CONNECTED TO THE DRIVE SYSTEM!
+
+//This is for telemetry to know which type of motor (drive/steering) is sending msgs
+uint8_t MOTOR_TYPE = 0; // This is a drive motor
+
 volatile bool received_CAN_command = false;
+
 FDCAN_RxHeaderTypeDef rxHeader;
 uint8_t rxData[8];
 FDCAN_HandleTypeDef hfdcan1;
@@ -103,6 +112,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_FDCAN1_Init(void);
+static void MX_TIM6_Init(void);
 static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -110,75 +120,6 @@ static void MX_NVIC_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
-//keep latest command only
-void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0) {
-        // Keep reading until FIFO is empty, but only keep the last message
-        while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
-            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, rxData);
-        }
-
-        received_CAN_command = true;
-    }
-}
-
-// Basic Standard
-//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-//    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0) {
-//        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
-//        	received_CAN_command = true;
-//        }
-//    }
-//}
-
-
-//Used for a custom 5 place smart buffer
-//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
-//    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0) {
-//        while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
-//            FDCAN_RxHeaderTypeDef tempHeader;
-//            uint8_t tempData[8];
-//
-//            if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &tempHeader, tempData) != HAL_OK) continue;
-//
-//            // Parse spec
-//            uint16_t id = tempHeader.Identifier & 0x07FF;
-//            uint8_t spec = (id >> 4) & 0x07;
-//            uint8_t action = (id >> 9) & 0x01;
-//
-//            bool isSpeedCommand = (action == 0) && (spec == 2);  // RUN + SPEED
-//
-//            // If it's a speed command, replace the last one
-//            bool replaced = false;
-//            if (isSpeedCommand) {
-//                for (int i = 0; i < canBufferCount; i++) {
-//                    uint16_t idOld = canBufferHeaders[i].Identifier & 0x07FF;
-//                    uint8_t specOld = (idOld >> 4) & 0x07;
-//                    uint8_t actionOld = (idOld >> 9) & 0x01;
-//
-//                    if ((actionOld == 0) && (specOld == 2)) {
-//                        canBufferHeaders[i] = tempHeader;
-//                        memcpy(canBufferData[i], tempData, 8);
-//                        replaced = true;
-//                        break;
-//                    }
-//                }
-//            }
-//
-//            // If not replaced, append (if room)
-//            if (!replaced && canBufferCount < MAX_CAN_BUFFERED_MSGS) {
-//                canBufferHeaders[canBufferCount] = tempHeader;
-//                memcpy(canBufferData[canBufferCount], tempData, 8);
-//                canBufferCount++;
-//            }
-//        }
-//
-//        received_CAN_command = true;
-//    }
-//}
-
 
 /* USER CODE END 0 */
 
@@ -227,6 +168,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_MotorControl_Init();
   MX_FDCAN1_Init();
+  MX_TIM6_Init();
 
   /* Initialize interrupts */
   MX_NVIC_Init();
@@ -238,6 +180,24 @@ int main(void)
     uart_debug_print("UART is initialized and ready to go\r\n");
     uart_debug_print("ESC ID is set to: %d\r\n", (int)ESC_ID);
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
+  
+// Enable interrupts:
+	/////////////////////////////////////////////////////////////
+// ** IDK why this section is needed, since CAN was working before these things were added
+// ** but the arm code has them so this was added in case bc why not. 
+
+/* Enable FDCAN1 interrupts */
+	HAL_NVIC_SetPriority(FDCAN1_IT0_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(FDCAN1_IT0_IRQn);
+	HAL_NVIC_SetPriority(FDCAN1_IT1_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(FDCAN1_IT1_IRQn);
+
+	// /* Enable TIM6 interrupt */
+	HAL_NVIC_SetPriority(TIM6_DAC_IRQn, 6, 0);
+	HAL_NVIC_EnableIRQ(TIM6_DAC_IRQn);
+
+//////////////////////////////////////////////////////////////////
+
   FDCAN_FilterTypeDef sFilterConfig;
   sFilterConfig.IdType = FDCAN_STANDARD_ID;
   sFilterConfig.FilterIndex = 0;
@@ -250,15 +210,18 @@ int main(void)
       Error_Handler();
   }
 
-
-    if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
+  if (HAL_FDCAN_Start(&hfdcan1) != HAL_OK) {
       Error_Handler();
   }
 
-    if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
+  if (HAL_FDCAN_ActivateNotification(&hfdcan1, FDCAN_IT_RX_FIFO0_NEW_MESSAGE, 0) != HAL_OK) {
       Error_Handler();
   }
 
+  /* Start the 1 kHz processing timer */
+  if (HAL_TIM_Base_Start_IT(&htim6) != HAL_OK) {
+		Error_Handler();
+	}
 
   /* USER CODE END 2 */
 
@@ -283,7 +246,7 @@ int main(void)
 	  }
 
 
-	 	  // Parse with buffer
+	  // Parse with buffer
 	 //	  if (received_CAN_command) {
 	 //	      received_CAN_command = false;
 	 //
@@ -1038,6 +1001,44 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief TIM6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM6_Init(void)
+{
+
+  /* USER CODE BEGIN TIM6_Init 0 */
+
+  /* USER CODE END TIM6_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM6_Init 1 */
+
+  /* USER CODE END TIM6_Init 1 */
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 169;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 999;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM6_Init 2 */
+
+  /* USER CODE END TIM6_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -1135,6 +1136,92 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+    if (htim->Instance == TIM6) {
+
+        /* Refresh sensor cache */
+        ESC_Sensors_Update();
+
+        /* Broadcast scheduled signals */
+        Telemetry_Tick_1ms();
+
+        /* Service CAN flag if message is received */
+        if (received_CAN_command) {
+            received_CAN_command = 0;
+            received_CAN_command = 1;
+        }
+    }
+}
+
+//keep latest command only
+void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0) {
+        // Keep reading until FIFO is empty, but only keep the last message
+        while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
+            HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, rxData);
+        }
+
+        received_CAN_command = true;
+    }
+}
+
+// Basic Standard CAN Interrupt
+//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+//    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0) {
+//        if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
+//        	received_CAN_command = true;
+//        }
+//    }
+//}
+
+
+//Used for a custom 5 place smart buffer CAN interrupt function
+//void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs) {
+//    if ((RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) != 0) {
+//        while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO0) > 0) {
+//            FDCAN_RxHeaderTypeDef tempHeader;
+//            uint8_t tempData[8];
+//
+//            if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &tempHeader, tempData) != HAL_OK) continue;
+//
+//            // Parse spec
+//            uint16_t id = tempHeader.Identifier & 0x07FF;
+//            uint8_t spec = (id >> 4) & 0x07;
+//            uint8_t action = (id >> 9) & 0x01;
+//
+//            bool isSpeedCommand = (action == 0) && (spec == 2);  // RUN + SPEED
+//
+//            // If it's a speed command, replace the last one
+//            bool replaced = false;
+//            if (isSpeedCommand) {
+//                for (int i = 0; i < canBufferCount; i++) {
+//                    uint16_t idOld = canBufferHeaders[i].Identifier & 0x07FF;
+//                    uint8_t specOld = (idOld >> 4) & 0x07;
+//                    uint8_t actionOld = (idOld >> 9) & 0x01;
+//
+//                    if ((actionOld == 0) && (specOld == 2)) {
+//                        canBufferHeaders[i] = tempHeader;
+//                        memcpy(canBufferData[i], tempData, 8);
+//                        replaced = true;
+//                        break;
+//                    }
+//                }
+//            }
+//
+//            // If not replaced, append (if room)
+//            if (!replaced && canBufferCount < MAX_CAN_BUFFERED_MSGS) {
+//                canBufferHeaders[canBufferCount] = tempHeader;
+//                memcpy(canBufferData[canBufferCount], tempData, 8);
+//                canBufferCount++;
+//            }
+//        }
+//
+//        received_CAN_command = true;
+//    }
+//}
+
 
 /* USER CODE END 4 */
 

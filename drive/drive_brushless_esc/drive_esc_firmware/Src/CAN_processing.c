@@ -11,20 +11,6 @@
 #include <stdbool.h>
 
 
-// Define the bit masks to retrieve the relevent portions of data from the CAN id
-#define SENDER_DEVICE_MASK		  		(0x0400U) // 0b010000000000
-#define SENDER_DEVICE_SHIFT 		    (10U)
-#define NACTION_READ_DEVICE_MASK  		(0x0200U) // 0b001000000000
-#define NACTION_READ_ID_DEVICE_SHIFT    (9U)
-#define NMULTI_SINGLE_DEVICE_MASK		(0x0100)	// 0b000100000000
-#define NMULTI_SINGLE_SHIFT				(8U)
-#define NDRIVE_STEETING_DEVICE_MASK		(0x0080) // 0b000010000000
-#define NDRIVE_STEERING_SHIFT 			(7U)
-#define MSG_SPECIFICATION_DEVICE_MASK	(0x0070) // 0b000001110000
-#define MSG_SPECIFICATION_SHIFT			(4U)
-#define ID_DEVICE_MASK					(0x000f)// 0b000000001111
-
-
 //Ramp up "torque" parameters
 #define RAMP_MIN_MS_RUN      100   // small tweaks while already running
 #define RAMP_MIN_MS_STARTUP  200   // zero → set-point, or after stop
@@ -70,22 +56,22 @@ static StartWatchdog s_startWd = { .firstTick = 0, .attempts = 0 };
 
 //The next functions here are to retrieve the correct pattern of bits from the received CAN message
 uint8_t get_CAN_transmitter (uint16_t CAN_ID) {
-	return (CAN_ID & SENDER_DEVICE_MASK) >> SENDER_DEVICE_SHIFT;
+	return (CAN_ID & CAN_SENDER_MASK) >> CAN_SENDER_SHIFT;
 }
 uint8_t get_CAN_action (uint16_t CAN_ID) {
-	return (CAN_ID & NACTION_READ_DEVICE_MASK) >> NACTION_READ_ID_DEVICE_SHIFT;
+	return (CAN_ID & CAN_ACTION_MASK) >> CAN_ACTION_SHIFT;
 }
 uint8_t get_CAN_motor_mov_type (uint16_t CAN_ID) {
-	return (CAN_ID & NMULTI_SINGLE_DEVICE_MASK) >> NMULTI_SINGLE_SHIFT;
+	return (CAN_ID & CAN_CONFIG_MASK) >> CAN_CONFIG_SHIFT;
 }
 uint8_t get_CAN_motor_type (uint16_t CAN_ID) {
-	return (CAN_ID & NDRIVE_STEETING_DEVICE_MASK) >> NDRIVE_STEERING_SHIFT;
+	return (CAN_ID & CAN_MOTORTYPE_MASK) >> CAN_MOTORTYPE_SHIFT;
 }
 uint8_t get_CAN_SPEC (uint16_t CAN_ID) {
-	return (CAN_ID & MSG_SPECIFICATION_DEVICE_MASK) >> MSG_SPECIFICATION_SHIFT;
+	return (CAN_ID & CAN_SPEC_MASK) >> CAN_SPEC_SHIFT;
 }
 int get_CAN_device_ID (uint16_t CAN_ID) {
-	return (CAN_ID & ID_DEVICE_MASK);
+	return (CAN_ID & CAN_DEVICEID_MASK);
 }
 
 /*
@@ -203,26 +189,26 @@ void Process_Single_ESC_Command (ParsedCANID *CANMessageID, uint8_t *rxData){
 				float currentSpeed = MC_GetMecSpeedReferenceMotor1_F();
 				sendCANResponse(CANMessageID, currentSpeed);
 				break;
-		case(VOLTAGE):
+		case(READ_VOLTAGE):
 				float phaseVoltage = MC_GetPhaseVoltageAmplitudeMotor1();
 				sendCANResponse(CANMessageID, phaseVoltage);
 				break;
-		case(CURRENT):
+		case(READ_CURRENT):
 				float phaseCurrent = MC_GetPhaseCurrentAmplitudeMotor1();
 				sendCANResponse(CANMessageID, phaseCurrent);
 				break;
-		case(GET_ALL_FAULTS):
+		case(READ_ALL_FAULTS):
 				float currentFaults = MC_GetOccurredFaultsMotor1();
 				sendCANResponse(CANMessageID, currentFaults);
 				break;
-		case(GET_CURRENT_STATE):
+		case(READ_CURRENT_STATE):
 				float currentState = MC_GetSTMStateMotor1();
 				sendCANResponse(CANMessageID, currentState);
 				break;
-		case(GET_TEMPERATURE):
+		case(READ_TEMPERATURE):
 				//TODO --> need to poll the gpio, check the datasheet later for whichever pin this is
 				break;
-		case(GET_PING):
+		case(READ_PING):
 				float feedback = 69;// ;)
 				sendCANResponse(CANMessageID, feedback);
 				break;
@@ -361,7 +347,7 @@ void runSingleMotorV2(float newSpeed){
 	speedCmd = speedCheck(speedCmd); // Checks to make sure the speed is within acceptable limits, corrects otherwise
 	speedCmd = clippingCheck(speedCmd); // Checks the degree of variation between the previous two commands, if too great than correct
 
-//	if (checkReversing(speedCmd)){ // If the motor has reversed, then motor is stopped (or fault has occured) so leave process
+//if (checkReversing(speedCmd)){ // If the motor has reversed, then motor is stopped (or fault has occured) so leave process
 //		////////////////////////////////////////////////////////////////////////////////////////////////////////
 //		 uart_debug_print("REVERSING DETECTED!\r\n");
 //		////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -629,11 +615,11 @@ bool safeStopMotor(float currentSpeedRpm, MCI_State_t motorState){
 		int rampDownDivisions = (int)(fabsf(deltaSpeed) / DELTA_SPEED_THRESH);
 		if (rampDownDivisions < 1) rampDownDivisions = 1;  // Ensure at least one division
 
-		float stepSize = deltaSpeed / rampDownDivisions;
+		float stepSize = deltaSpeed / rampDownDivisions; //ramps down by steps
 
 		// Slowly ramp down to target before stopping
 		for (int i = 1; i <= rampDownDivisions; i++) {
-			float intermediateTarget = currentSpeedRpm - (stepSize * i);
+			float intermediateTarget = currentSpeedRpm - (stepSize * i); //the value you're going to at this iteration
 			uint16_t rampTime = computeRampTimeMs(MC_GetMecSpeedReferenceMotor1_F(), intermediateTarget, false);
 			MC_ProgramSpeedRampMotor1_F(intermediateTarget, rampTime);
 			HAL_Delay(rampTime);  // Wait for ramp to apply before next one
@@ -795,17 +781,18 @@ void sendCANResponse(ParsedCANID *CANMessageID, float information){
     uint8_t txData[8];
 
 
-    uint8_t spec = (CANMessageID->commandType == ACTION_READ)
-                   ? (uint8_t)(CANMessageID->readSpec)
-                   : (uint8_t)(CANMessageID->runSpec);
+	// * This seems to be useless since it repeats commandType that is defined later in the next block of code
+    // uint8_t spec = (CANMessageID->commandType == ACTION_READ)
+    //                ? (uint8_t)(CANMessageID->readSpec)
+    //                : (uint8_t)(CANMessageID->runSpec);
 
 
     // Configure the ID of the message according to what was received
-    txID |= (1 & 0x01) << SENDER_DEVICE_SHIFT; // This calue is now always 1 since the esc is sending data.
-    txID |= (CANMessageID->motorType & 0x01) << NDRIVE_STEERING_SHIFT;
-    txID |= (CANMessageID->motorConfig & 0x01) << NMULTI_SINGLE_SHIFT;
-    txID |= (CANMessageID->commandType & 0x01) << NACTION_READ_ID_DEVICE_SHIFT;
-    txID |= (CANMessageID->readSpec & 0x07) << MSG_SPECIFICATION_SHIFT;
+    txID |= (1 & 0x01) << CAN_SENDER_SHIFT; // This calue is now always 1 since the esc is sending data.
+    txID |= (CANMessageID->motorType & 0x01) << CAN_MOTORTYPE_SHIFT;
+    txID |= (CANMessageID->motorConfig & 0x01) << CAN_CONFIG_SHIFT;
+    txID |= (CANMessageID->commandType & 0x01) << CAN_ACTION_SHIFT;
+    txID |= (CANMessageID->readSpec & 0x07) << CAN_SPEC_SHIFT;
     txID |= (CANMessageID->motorID & 0x0f);
 
     // Move the information into the data paylaod
@@ -834,15 +821,15 @@ void sendCANResponse(ParsedCANID *CANMessageID, float information){
 }
 
 // Extracts a float from a CAN data buffer that is expected to be in little-Endian
-float SingleExtractFloatFromCAN(uint8_t *data) {
+float SingleExtractFloatFromCAN(uint8_t *data) { // unsigned integer 8 bits (one byte)
     float value;
     uint8_t reorderedData[4];
 
     // The data is already big-endian, so we copy directly:
-    reorderedData[0] = data[0];
-    reorderedData[1] = data[1];
-    reorderedData[2] = data[2];
-    reorderedData[3] = data[3];
+    reorderedData[0] = data[0]; //byte
+    reorderedData[1] = data[1]; //byte
+    reorderedData[2] = data[2]; //byte
+    reorderedData[3] = data[3]; //byte
 
     memcpy(&value, reorderedData, sizeof(float));
     return value;

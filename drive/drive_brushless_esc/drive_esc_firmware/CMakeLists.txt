@@ -47,6 +47,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     ${CMAKE_SOURCE_DIR}/Src/CAN_processing.c
     ${CMAKE_SOURCE_DIR}/Src/uart_debug.c
+    ${CMAKE_SOURCE_DIR}/Src/can_telemetry.c
+    ${CMAKE_SOURCE_DIR}/Src/esc_sensors.c
 )
 
 # Add include paths

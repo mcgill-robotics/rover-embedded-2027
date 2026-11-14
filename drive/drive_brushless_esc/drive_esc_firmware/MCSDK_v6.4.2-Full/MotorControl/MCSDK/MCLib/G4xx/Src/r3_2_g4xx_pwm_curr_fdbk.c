@@ -1577,7 +1577,6 @@ __weak void *R3_2_TIMx_UP_IRQHandler(PWMC_R3_2_Handle_t *pHandle)
     {  
       while (0x0u != pHandle->pParams_str->ADCDataReg1[0]->JSQR)
       {
-        break;
         /* Nothing to do */
       }
     }

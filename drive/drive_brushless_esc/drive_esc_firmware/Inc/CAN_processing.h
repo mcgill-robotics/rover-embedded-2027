@@ -19,8 +19,21 @@ extern int s_previousDirection;
 
 
 
-extern int ESC_ID;
+extern uint8_t ESC_ID;
 extern FDCAN_HandleTypeDef hfdcan1;
+
+// Define the bit masks to retrieve the relevent portions of data from the CAN id
+#define CAN_SENDER_MASK		  		(0x0400U) // 0b010000000000
+#define CAN_SENDER_SHIFT 		    (10U)
+#define CAN_ACTION_MASK  			(0x0200U) // 0b001000000000
+#define CAN_ACTION_SHIFT    		(9U)
+#define CAN_CONFIG_MASK				(0x0100U)	// 0b000100000000
+#define CAN_CONFIG_SHIFT			(8U)
+#define CAN_MOTORTYPE_MASK			(0x0080U) // 0b000010000000
+#define CAN_MOTORTYPE_SHIFT 		(7U)
+#define CAN_SPEC_MASK				(0x0070U) // 0b000001110000
+#define CAN_SPEC_SHIFT				(4U)
+#define CAN_DEVICEID_MASK			(0x000FU)// 0b000000001111
 
 
 // Enumaeration classes for different possible CAN Message casess
@@ -52,14 +65,15 @@ typedef enum {
 } RunSpec;
 
 typedef enum {
-    READ_SPEED             	 = 0,
-    READ_POSITION          	 = 1,
-    VOLTAGE           		 = 2,
-    CURRENT           	 	 = 3,
-    GET_ALL_FAULTS    		 = 4,
-    GET_CURRENT_STATE   	 = 5,
-	GET_TEMPERATURE	  		 = 6,
-	GET_PING				 = 7
+    READ_SPEED            = 0,   /* Motor speed (RPM or rad/s) */
+    READ_POSITION         = 1,   /* Rotor / joint position     */
+    READ_VOLTAGE          = 2,   /* DC bus voltage             */
+    READ_CURRENT          = 3,   /* Phase currents             */
+    READ_TEMPERATURE      = 4,   /* Board / FET temperature    */
+    READ_CURRENT_STATE    = 5,   /* Fault flags, motor state   */
+    READ_PING             = 6,   /* Ping / heartbeat           */
+    READ_CONTROL_MODE     = 7,   /* Current control mode       */
+    READ_ALL_FAULTS       = 8
 } ReadSpec;
 
 typedef enum {
@@ -91,6 +105,29 @@ typedef struct {
 } StartWatchdog;
 
 
+/* CAN ID construction  */
+/**
+ * @brief  Build a complete 11-bit CAN ID from individual fields.
+ *
+ * This is the single canonical builder used by both sendCANResponse()
+ * and the telemetry scheduler.
+ */
+static inline uint16_t CAN_BuildID(uint8_t sender,
+                                   uint8_t action,
+                                   uint8_t config,
+                                   uint8_t motor_type,
+                                   uint8_t spec,
+                                   uint8_t device_id)
+{
+    uint16_t id = 0;
+    id |= (uint16_t)(sender     & 0x01U) << CAN_SENDER_SHIFT;
+    id |= (uint16_t)(action     & 0x01U) << CAN_ACTION_SHIFT;
+    id |= (uint16_t)(config     & 0x01U) << CAN_CONFIG_SHIFT;
+    id |= (uint16_t)(motor_type & 0x01U) << CAN_MOTORTYPE_SHIFT;
+    id |= (uint16_t)(spec       & 0x07U) << CAN_SPEC_SHIFT;
+    id |= (uint16_t)(device_id  & 0x0FU);
+    return id;
+}
 
 //CAN Interaction prototypes
 void CAN_Parse_MSG (FDCAN_RxHeaderTypeDef *rxHeader, uint8_t *rxData);
