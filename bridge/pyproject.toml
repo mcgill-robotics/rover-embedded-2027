@@ -10,6 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
 	"python-can>=4.0", 
 	"pyserial>=3.5",
+  "paho-mqtt>=2.1"
 	]
 
 # See [tool.hatch.metadata.hooks.custom] for version
@@ -36,9 +37,7 @@ power-board-cli = "rover_embedded.power.power_board_cli:main"
 pantilt-ctl = "rover_embedded.comms.pantilt_tui:run"
 
 # Arm scripts
-arm-esc-logger = "rover_embedded.arm.scripts.can_logger:main"
-arm-esc-dashboard = "rover_embedded.arm.scripts.can_dashboard:main"
-
+# Yeah, nothing here at the moment.
 
 [build-system]
 requires = ["hatchling >= 1.26"]
