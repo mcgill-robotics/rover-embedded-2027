@@ -79,7 +79,7 @@ uint16_t weight3_val = 0;
 uint32_t tof_val = 0;
 
 uint16_t timer = 0;
-uint16_t timestamp = 0;
+uint32_t timestamp = 0;
 
 char message_buffer[MAX_MESSAGE_LENGTH];
 uint16_t message_length;
@@ -195,21 +195,14 @@ static uint16_t Get_Position(float position) {
 static void Turn_Servo(uint8_t number, float position) {
     position = Get_Position(position);
     if (number == 1) {
-        __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, position);
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, position);
     }
     if (number == 2) {
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, position);
     }
     if (number == 3) {
-        __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, position);
+        __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, position);
     }
-    if (number == 4) {
-        __HAL_TIM_SET_COMPARE(&htim16, TIM_CHANNEL_1, position);
-    }
-    if (number == 5) {
-        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, position);
-    }
-
 }
 /* USER CODE END 0 */
 
@@ -260,19 +253,17 @@ int main(void)
 
     // Initialize servo PWM timers
     // IMPORTANT: Set the timers and channels accordingly
-    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1); 		// Servo 1
-    __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, 50);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);			// Servo 2
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3); // Servo 1
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 50);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4); // Servo 2
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 50);
-    HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);		// Servo 3
-    __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, 50);
-
-    int i = 50;
+    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1); // Servo 2
+    __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, 50);
 
 
     // RTC startup config
     RTC_TimeTypeDef sTimeinit;
-    uint16_t mseconds = 0;
+    //uint16_t mseconds = 0;
     // Disable Wakeup Timer and configure it
     HAL_RTCEx_DeactivateWakeUpTimer(RtcHandle);
     // Init the time of the RTC system
@@ -320,7 +311,7 @@ int main(void)
           }
           if (i > 200) i = 100;*/
 
-        uint8_t flip = 0;
+        //uint8_t flip = 0;
         Turn_Servo(1, 0.1);
         /*for (uint8_t s = 1; s <= 5; s++) {
           Turn_Servo(s, 0.1);
@@ -383,13 +374,13 @@ int main(void)
         // Write to buffer
 
         if (timer > 0){
-            message_length = snprintf(message_buffer, MAX_MESSAGE_LENGTH
+            message_length = snprintf(message_buffer, MAX_MESSAGE_LENGTH,
                     "{"
                         "'time':%ld,"
                         "'ph1':%d,'ph2':%d,'ph3':%d,'ph4':%d,"
                         "'m1':%d,'m2':%d,'m3':%d,'m4':%d,"
                         "'w1':%d,'w2':%d,"
-                        "'tof':%ld\r\n"
+                        "'tof':%ld\n"
                     "}",
                     timestamp,
                     ph1_val, ph2_val, ph3_val, ph4_val,
