@@ -117,9 +117,3 @@ class CanMqttBridge:
         self._stop.set()
         self._client.disconnect()
         self._client.loop_stop()
-    
-
-
-
-def main() -> None:
-    pass
