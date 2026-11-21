@@ -162,13 +162,14 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     PA4     ------> ADC2_IN17
     PA5     ------> ADC2_IN13
     PA6     ------> ADC2_IN3
+    PA7     ------> ADC2_IN4
     */
     GPIO_InitStruct.Pin = MOIS1_Pin|MOIS2_Pin|MOIS3_Pin|MOIS4_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = WEIGHT1_Pin|WEIGHT2_Pin|WEIGHT3_Pin;
+    GPIO_InitStruct.Pin = WEIGHT1_Pin|WEIGHT2_Pin|WEIGHT3_Pin|WEIGHT4_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -230,10 +231,11 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     PA4     ------> ADC2_IN17
     PA5     ------> ADC2_IN13
     PA6     ------> ADC2_IN3
+    PA7     ------> ADC2_IN4
     */
     HAL_GPIO_DeInit(GPIOC, MOIS1_Pin|MOIS2_Pin|MOIS3_Pin|MOIS4_Pin);
 
-    HAL_GPIO_DeInit(GPIOA, WEIGHT1_Pin|WEIGHT2_Pin|WEIGHT3_Pin);
+    HAL_GPIO_DeInit(GPIOA, WEIGHT1_Pin|WEIGHT2_Pin|WEIGHT3_Pin|WEIGHT4_Pin);
 
     /* USER CODE BEGIN ADC2_MspDeInit 1 */
 

@@ -81,6 +81,8 @@ void Error_Handler(void);
 #define WEIGHT2_GPIO_Port GPIOA
 #define WEIGHT3_Pin GPIO_PIN_6
 #define WEIGHT3_GPIO_Port GPIOA
+#define WEIGHT4_Pin GPIO_PIN_7
+#define WEIGHT4_GPIO_Port GPIOA
 #define SER1_Pin GPIO_PIN_0
 #define SER1_GPIO_Port GPIOB
 #define SER2_Pin GPIO_PIN_1
