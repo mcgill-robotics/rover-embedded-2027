@@ -35,6 +35,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["src/rover_embedded/arm/tests"]
 timeout = 5
+markers = [
+	"integration: needs a real Mosquitto install (skipped if missing)",
+	]
 
 [project.urls]
 Homepage = "https://github.com/mcgill-robotics/rover-embedded-2027"
