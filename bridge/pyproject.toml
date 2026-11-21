@@ -25,6 +25,17 @@ gui = [
 	]
 all = ["rover-embedded[gui]"]
 
+# Hello it's Tony I'm using pytest to make sure my scripts work
+[dependency-groups]
+dev = [
+	"pytest>=8.0",
+	"pytest-timeout>=2.3"
+	]
+
+[tool.pytest.ini_options]
+testpaths = ["src/rover_embedded/arm/tests"]
+timeout = 5
+
 [project.urls]
 Homepage = "https://github.com/mcgill-robotics/rover-embedded-2027"
 Documentation = "https://mcgill-robotics.github.io/rover-documentation/"

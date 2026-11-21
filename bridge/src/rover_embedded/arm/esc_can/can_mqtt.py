@@ -56,6 +56,7 @@ class CanMqttBridge:
     These jobs are separated into separate threads so as to not block anything.
     """
     
+    # Initialize and set properties that other things should not change nor access
     def __init__(self, bus: can.BusABC, client: mqtt.Client,
                  *, qos: int = 0, retain: bool = False) -> None:
         self._bus = bus
@@ -67,8 +68,8 @@ class CanMqttBridge:
         client.on_connect = self._on_connect
         client.on_message = self._on_message
 
-    # -- MQTT callbacks ----------------------------------------------------
 
+    # On connection to the broker, subscribe to the TX filter i.e. the arm commands
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         if reason_code.is_failure:
             log.error("MQTT connect failed: %s", reason_code)
@@ -76,6 +77,7 @@ class CanMqttBridge:
         client.subscribe(TX_TOPIC_FILTER, qos=self._qos)
         log.info("Connected to broker, listening on %s", TX_TOPIC_FILTER)
 
+    # When it receives an arm command, it extracts the data/id + wraps it in a CAN frame, then sends it on the Bus.
     def _on_message(self, client, userdata, message):
         try:
             data = bytes.fromhex(message.payload.decode())
@@ -96,13 +98,16 @@ class CanMqttBridge:
         except can.CanError as exc:
             log.error("Bus TX failed on %s: %s", message.topic, exc)
 
-    # -- life cycle --------------------------------------------------------
 
+    # When it's starting, it chooses the default host/port to search for the broker on.
+    # This might need configuring but it fits the Mosquitto default behavior.
     def start(self, host: str = DEFAULT_MQTT_HOST,
               port: int = DEFAULT_MQTT_PORT) -> None:
         self._client.connect(host, port)
         self._client.loop_start()
 
+    # This is looping behavior. "Dormammu I've come to bargain" ahhh.
+    # The 0.5s timeout is for checking the stop flag, both sending/receiving messages is smooth. 
     def run(self) -> None:
         """Block until stop(). Forwards every frame the bus receives."""
         while not self._stop.is_set():
