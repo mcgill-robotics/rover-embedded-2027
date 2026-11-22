@@ -2,7 +2,7 @@
 name = "rover-embedded"
 description = "Python packages defining libraries and APIs to interface with McGill Robotics' rover's boards"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 
 # Dependencies needed for all operation go here
 # Do not put dependencies for internal UI needs that software does not use in here
