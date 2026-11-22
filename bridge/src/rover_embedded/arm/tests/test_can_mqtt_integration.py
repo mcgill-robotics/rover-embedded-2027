@@ -1,8 +1,8 @@
 """
-End-to-end tests for CanMqttBridge: real Mosquitto broker + python-can virtual bus.
+These tests are meant to simulate actual usage. They incorporate
+real mosquitto communication and a virtual CAN bus. 
 
 These need Mosquitto installed (see conftest.py) and get skipped otherwise.
-Run only the fast tests with: pytest -m "not integration"
 """
 
 import queue
@@ -20,17 +20,18 @@ from rover_embedded.arm.esc_can.can_mqtt import (
         tx_topic,
         )
 
-pytestmark = pytest.mark.integration
-
 WAIT = 2  # seconds, stays under the 5s pytest-timeout
 
 
 def _connected_client(host, port) -> tuple[mqtt.Client, threading.Event]:
-    "A plain MQTT client standing in for the UI side."
+    "A plain ham sandwich MQTT client standing in for the UI."
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    # Weird, overkill status tracking.
     connected = threading.Event()
     client.on_connect = lambda *args: connected.set()
+    # Connect to the MQTT business through TCP.
     client.connect(host, port)
+    # Read packets, and trigger callbacks when necessary.
     client.loop_start()
     assert connected.wait(WAIT), "test client could not connect"
     return client, connected
@@ -39,24 +40,27 @@ def _connected_client(host, port) -> tuple[mqtt.Client, threading.Event]:
 @pytest.fixture
 def bridge_setup(mqtt_broker):
     """
-    Runs a real bridge. Yields the 'arm' end of the virtual CAN bus,
-    i.e. the bus the ESCs would be on.
+    Sets up the broker and virtual CAN bus.
     """
     host, port = mqtt_broker
     channel = f"test-{uuid.uuid4()}"  # fresh virtual bus per test
+    # Connect two nodes to the same bus
     bridge_bus = can.Bus(interface="virtual", channel=channel)
     arm_bus = can.Bus(interface="virtual", channel=channel)
 
+    # The bridge itself is an MQTT client yknow:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     subscribed = threading.Event()
     client.on_subscribe = lambda *args: subscribed.set()  # bridge doesn't use this hook
 
+    # Link the bridge virtual CAN with this new MQTT client
     bridge = CanMqttBridge(bridge_bus, client)
     bridge.start(host, port)
     runner = threading.Thread(target=bridge.run, daemon=True)
     runner.start()
     assert subscribed.wait(WAIT), "bridge never subscribed to the TX topics"
 
+    # Yield the arm bus, because this is the only thing that the tests need.
     yield arm_bus
 
     bridge.stop()

@@ -1,11 +1,10 @@
 """
-Shared pytest fixtures.
+This is a helper file for the other tests.
+It makes a broker for the other tests to use.
 
-mqtt_broker spins up a throwaway Mosquitto on a free port for the integration
-tests, so it never collides with the system service (if you have one running).
-If Mosquitto isn't installed, those tests get skipped instead of failing.
+if you don't have mosquitto do this: sudo apt install mosquitto
 
-Install it with: sudo apt install mosquitto
+Thank you for using TonyCode today. We hope your experience was delightful.
 """
 
 import os
@@ -23,18 +22,25 @@ def _free_port() -> int:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
 
-
+# The below is a pytest fixture. It's a flag for pytest to let it know that 
+# it's a helper function for other tests.
+# E.G. it's added to a function argument and then the results are passed in.
+# Or whatever. I'm not 100% sure myself.
 @pytest.fixture(scope="session")
 def mqtt_broker(tmp_path_factory):
     """Start a private Mosquitto for the whole test session, yield (host, port)."""
+    # Red fish stay, blue fish go, give me your environment variable for mosquitto.
     exe = os.environ.get("MOSQUITTO") or shutil.which("mosquitto")
     if exe is None:
         pytest.skip("mosquitto not installed (sudo apt install mosquitto)")
 
     port = _free_port()
+    # Create a temporary config file.
     conf = tmp_path_factory.mktemp("mosquitto") / "test.conf"
+    # Listen to local traffic and don't require a login.
     conf.write_text(f"listener {port} 127.0.0.1\nallow_anonymous true\n")
 
+    # Create the process using the config file.
     proc = subprocess.Popen([exe, "-c", str(conf)],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
