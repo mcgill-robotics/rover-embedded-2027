@@ -41,7 +41,7 @@ add_subdirectory(cmake/stm32cubemx)
 include(../../other/cmake/version-checker.cmake)
 
 # Import Libraries
-use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../../comms/rosjam2/src 0.1.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/Rosjam2_build")
+use_lib(${CMAKE_CURRENT_SOURCE_DIR}/../../comms/rosjam2 0.2.0 APPROX "${CMAKE_CURRENT_BINARY_DIR}/Rosjam2_build")
 
 # Enable float printf support for rosjam2
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u _printf_float")

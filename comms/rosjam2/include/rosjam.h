@@ -3,6 +3,7 @@
 
 #include "default_rosjam_config.h"
 #include "stm32g4xx_hal.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,6 +27,12 @@ char read_char();
 
 void process_simple();
 
+typedef struct packet_header {
+	int32_t payload_size;
+	int32_t id;
+	uint8_t read_write;
+	uint8_t packet_type[2];
+} packet_header_t;
 
 #ifdef __cplusplus
 }

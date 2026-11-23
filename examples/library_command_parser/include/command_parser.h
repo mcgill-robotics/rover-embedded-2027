@@ -2,6 +2,10 @@
 #ifndef COMMAND_PARSER_H
 #define COMMAND_PARSER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum command_type_t {
 	LIGHT_STATE,
 	LIGHT_SPEED,
@@ -13,6 +17,10 @@ typedef struct command_t {
 	int data;
 } command_t;
 
-int parse(char* message, int available, command_t* command);
+int parse(unsigned char* message, int available, command_t* command);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
