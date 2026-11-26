@@ -36,6 +36,11 @@ RX_TOPIC_FILTER = f"{RX_TOPIC_PREFIX}/+"
 DEFAULT_MQTT_HOST = "localhost"
 DEFAULT_MQTT_PORT = 1883
 
+# The CANable 2.0 runs slcan firmware, so it shows up as a serial port
+DEFAULT_CAN_CHANNEL = "/dev/ttyACM0" # THIS NEEDS A NEW ID PROBABLY
+CAN_NOMINAL_BITRATE = 500_000 # 500 kbps nominal
+CAN_DATA_BITRATE = 2_000_000 # The data transmission speed is 4x faster than arbitration here
+
 def rx_topic(arb_id: int) -> str:
     "This is a helper function, returning a consistent topic name."
     return f"{RX_TOPIC_PREFIX}/{arb_id:03X}"
@@ -135,9 +140,8 @@ def _raise_keyboard_interrupt(signum, frame):
 def main(argv: list[str] | None = None) -> None:
     """Open the CAN bus and the MQTT client, then bridge them until stopped."""
     parser = argparse.ArgumentParser(description="Bridge the arm CAN bus to MQTT.")
-    parser.add_argument("--channel", default="can0",
-                        help="SocketCAN channel: can0 on the Pi, vcan0 for testing "
-                             "(bitrates are set with `ip link`, not here)")
+    parser.add_argument("--channel", default=DEFAULT_CAN_CHANNEL,
+                        help="Serial port of the CANable (slcan firmware)")
     parser.add_argument("--host", default=DEFAULT_MQTT_HOST, help="MQTT broker host")
     parser.add_argument("--port", type=int, default=DEFAULT_MQTT_PORT, help="MQTT broker port")
     args = parser.parse_args(argv)
@@ -146,7 +150,9 @@ def main(argv: list[str] | None = None) -> None:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
 
-    bus = can.Bus(interface="socketcan", channel=args.channel, fd=True) # We use FDCAN (duh)
+    # SLCAN fun times
+    bus = can.Bus(interface="slcan", channel=args.channel)
+    bus.set_bitrate(CAN_NOMINAL_BITRATE, CAN_DATA_BITRATE)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="arm-can-bridge")
     bridge = CanMqttBridge(bus, client) # The actual goated line of code
 
