@@ -59,6 +59,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define USB_SENSE_Pin GPIO_PIN_13
+#define USB_SENSE_GPIO_Port GPIOC
 #define MOIS1_Pin GPIO_PIN_0
 #define MOIS1_GPIO_Port GPIOC
 #define MOIS2_Pin GPIO_PIN_1

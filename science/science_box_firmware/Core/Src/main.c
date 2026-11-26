@@ -25,6 +25,7 @@
 // Including the C standard libraries
 #include <stdio.h>			// STDIO
 #include <string.h>			// Strings (for organizing data)
+#include <stdbool.h>
 #include "rosjam.h"
 #include "stm32g4xx_hal_rtc.h"
 #include "vl53l3cx.h"
@@ -37,7 +38,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MAX_MESSAGE_LENGTH (180)
+#define MAX_DATA_LENGTH (180)
+#define UART_INPUT_LENGTH (8)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,6 +64,8 @@ UART_HandleTypeDef huart1;
 PCD_HandleTypeDef hpcd_USB_FS;
 
 /* USER CODE BEGIN PV */
+uint32_t timestamp = 0;
+
 uint16_t ph1_val = 0;
 uint16_t ph2_val = 0;
 uint16_t ph3_val = 0;
@@ -79,17 +83,19 @@ uint16_t weight4_val = 0;
 
 uint32_t tof_val = 0;
 
-uint16_t timer = 0;
-uint32_t timestamp = 0;
 
-char message_buffer[MAX_MESSAGE_LENGTH];
-uint16_t message_length;
-
-
-// Setting up the RTC
-#define RtcHandle &hrtc
-char timestamp_message[50];
-uint8_t sizeTimer;
+uint8_t uart_input_buffer[UART_INPUT_LENGTH];
+// This avoids the race condition (?) where a new UART transmission is started
+// while another one is still in progress
+// Shouldn't be necessary though
+volatile bool can_transmit_uart = true;
+// Use servos to open chute (controlled externally)
+volatile bool turn_servos = false;
+// Send data? (controlled by wake-up timer)
+volatile bool send_data = false;
+// Buffer for transferring data from sensors
+char data_buffer[MAX_DATA_LENGTH];
+uint16_t data_length;
 
 
 /* USER CODE END PV */
@@ -121,20 +127,25 @@ int __io_putchar(int ch) {
 // RTC interrupt callback function
 void HAL_RTCEx_WakeUpTimerEventCallback(RTC_HandleTypeDef *hrtc)
 {
-    static RTC_TimeTypeDef sTime;
-
-    // Get current time and date
-    HAL_RTC_GetTime(hrtc, &sTime, RTC_FORMAT_BIN);
-    uint16_t mseconds = (sTime.SubSeconds * 1000) / (sTime.SecondFraction + 1);
-
-    // Send time and date over uart
-    sizeTimer = sprintf(timestamp_message, "%02d:%02d:%02d:%3.3u\r\n", sTime.Hours, sTime.Minutes, sTime.Seconds, mseconds);
-    timestamp++;;
-    timer++;
+    // Set flag to send data
+    timestamp++;
+    send_data = true;
 }
 
+// UART receive complete callback function
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    // Set flag for servo things
+    turn_servos = true;
+    // Re-arm receiver interrupt
+    HAL_UART_Receive_IT(&huart1, uart_input_buffer, UART_INPUT_LENGTH);
+}
 
-VL53L3CX_Object_t sensor;
+// UART transmit complete callback function
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    can_transmit_uart = true;
+}
 
 static int32_t I2C_WriteReg(uint16_t addr, uint8_t *pdata, uint16_t count) {
     if (HAL_I2C_Master_Transmit(&hi2c4, addr, pdata, count, 100) != HAL_OK)
@@ -152,6 +163,7 @@ static int32_t I2C_GetTick(void) {
     return (int32_t)HAL_GetTick();
 }
 
+VL53L3CX_Object_t sensor;
 static void ToF_Init(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);
     HAL_Delay(10);
@@ -252,7 +264,7 @@ int main(void)
   MX_RTC_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-    // Initialize USB connection
+    // Initialize USB connection through Rosjam2
     setup_simple();
 
     // ToF Sensor
@@ -267,106 +279,79 @@ int main(void)
     HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_1); // Servo 2
     __HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_1, 50);
 
-
-    // RTC startup config
-    RTC_TimeTypeDef sTimeinit;
-    //uint16_t mseconds = 0;
-    // Disable Wakeup Timer and configure it
-    HAL_RTCEx_DeactivateWakeUpTimer(RtcHandle);
-    // Init the time of the RTC system
-    sTimeinit.Hours = 0;
-    sTimeinit.Minutes = 0;
-    HAL_RTC_SetTime(RtcHandle, &sTimeinit, RTC_FORMAT_BIN);
-
-    // Start Wakeup timer with configuration (32768Hz / 16 = 2048) -> Counter = 2048
-    HAL_RTCEx_SetWakeUpTimer_IT(RtcHandle, 2048-1, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
-
+    // Initialize UART interrupt mode
+    HAL_UART_Receive_IT(&huart1, uart_input_buffer, UART_INPUT_LENGTH);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
     while (1)
     {
-        // Setup USB
-        process_simple();
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    process_simple();
 
-        // RTC handling
-        // HAL_RTC_GetTime(RtcHandle, &sTime, RTC_FORMAT_BIN);
-        // mseconds = (sTime.SubSeconds * 1000) / (sTime.SecondFraction + 1);
-
-
-        // Servo driving
-
+    // Servo driving
+    if (turn_servos) {
         // Get servo signals from USB
         // The message will be formatted as: "S1:xx;S2:xx;S3:xx;S4:xx\n"
-
-
-        // Set the duty cycle for the servos to the values given
-        // Servos
-        //  ---- This is a test to check servos -----
-        /*i += 1;
-          if (50 > i && i >= 25) {
-          Turn_Servo(1, 0);
-          } else if (25 > i && i >= 0) {
-          Turn_Servo(1, 1);
-          } else {
-          i = 0;
-          }
-          if (i > 200) i = 100;*/
-
-        //uint8_t flip = 0;
+        // TBA but good enough for testing
         Turn_Servo(1, 0.1);
 
-        // ADC configuration and logic: polling
-        // Poll from ADC1
-        ph1_val = Get_Value_From_ADC(&hadc1); // Channel 1
-        ph2_val = Get_Value_From_ADC(&hadc1); // Channel 2
-        ph3_val = Get_Value_From_ADC(&hadc1); // Channel 3
-        ph4_val = Get_Value_From_ADC(&hadc1); // Channel 4
-        HAL_ADC_Stop(&hadc1);
+        turn_servos = false;
+    }
 
-        // Poll from ADC2
-        mois1_val = Get_Value_From_ADC(&hadc2); // Channel 6
-        mois2_val = Get_Value_From_ADC(&hadc2); // Channel 7
-        mois3_val = Get_Value_From_ADC(&hadc2); // Channel 8
-        mois4_val = Get_Value_From_ADC(&hadc2); // Channel 9
-        weight1_val = Get_Value_From_ADC(&hadc2); // Channel 17
-        weight2_val = Get_Value_From_ADC(&hadc2); // Channel 13
-        weight3_val = Get_Value_From_ADC(&hadc2); // Channel 3
-        weight4_val = Get_Value_From_ADC(&hadc2); // Channel 4
-        HAL_ADC_Stop(&hadc2);
+    // ADC configuration and logic: polling
+    // Poll from ADC1
+    ph1_val = Get_Value_From_ADC(&hadc1); // Channel 1
+    ph2_val = Get_Value_From_ADC(&hadc1); // Channel 2
+    ph3_val = Get_Value_From_ADC(&hadc1); // Channel 3
+    ph4_val = Get_Value_From_ADC(&hadc1); // Channel 4
+    HAL_ADC_Stop(&hadc1);
 
-        // ToF
-        tof_val = ToF_Read();
+    // Poll from ADC2
+    mois1_val = Get_Value_From_ADC(&hadc2); // Channel 6
+    mois2_val = Get_Value_From_ADC(&hadc2); // Channel 7
+    mois3_val = Get_Value_From_ADC(&hadc2); // Channel 8
+    mois4_val = Get_Value_From_ADC(&hadc2); // Channel 9
+    weight1_val = Get_Value_From_ADC(&hadc2); // Channel 17
+    weight2_val = Get_Value_From_ADC(&hadc2); // Channel 13
+    weight3_val = Get_Value_From_ADC(&hadc2); // Channel 3
+    weight4_val = Get_Value_From_ADC(&hadc2); // Channel 4
+    HAL_ADC_Stop(&hadc2);
 
-        // Send the data via the USB interface
-        // Write to buffer
+    // Read from time of flight sensor
+    tof_val = ToF_Read();
 
-        if (timer > 0){
-            message_length = snprintf(message_buffer, MAX_MESSAGE_LENGTH,
-                    "{"
-                        "'time':%ld,"
-                        "'ph1':%d,'ph2':%d,'ph3':%d,'ph4':%d,"
-                        "'m1':%d,'m2':%d,'m3':%d,'m4':%d,"
-                        "'w1':%d,'w2':%d,'w3':%d,'w4':%d"
-                        "'tof':%ld\n"
-                    "}",
-                    timestamp,
-                    ph1_val, ph2_val, ph3_val, ph4_val,
-                    mois1_val, mois2_val, mois3_val, mois4_val,
-                    weight1_val, weight2_val, weight3_val, weight4_val,
-                    tof_val
-            );
+    // Send the data via the USB and UART
+    // Write to buffer
+    if (send_data) {
+        data_length = snprintf(data_buffer, MAX_DATA_LENGTH,
+            "{"
+                "'time':%ld,"
+                "'ph1':%d,'ph2':%d,'ph3':%d,'ph4':%d,"
+                "'m1':%d,'m2':%d,'m3':%d,'m4':%d,"
+                "'w1':%d,'w2':%d,'w3':%d,'w4':%d"
+                "'tof':%ld\n"
+            "}",
+            timestamp,
+            ph1_val, ph2_val, ph3_val, ph4_val,
+            mois1_val, mois2_val, mois3_val, mois4_val,
+            weight1_val, weight2_val, weight3_val, weight4_val,
+            tof_val
+        );
 
-            // Send data via USB
-            send_msg_raw(message_buffer, message_length);
-            timer = 0;
+        // Send data via USB (does Rosjam buffer this?)
+        send_msg_raw(data_buffer, data_length);
+        // Send data via UART
+        if (can_transmit_uart) {
+            can_transmit_uart = false;
+            HAL_UART_Transmit_IT(&huart1, (uint8_t *)data_buffer, data_length);
         }
 
+        send_data = false;
+    }
         // NO HAL_Delay!!! (rosjam USB doesn't like that)
     }
   /* USER CODE END 3 */
@@ -748,7 +733,7 @@ static void MX_RTC_Init(void)
 
   /** Enable the WakeUp
   */
-  if (HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 0, RTC_WAKEUPCLOCK_RTCCLK_DIV16) != HAL_OK)
+  if (HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 0, RTC_WAKEUPCLOCK_CK_SPRE_16BITS) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1011,6 +996,12 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(USR_LED_GPIO_Port, USR_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : USB_SENSE_Pin */
+  GPIO_InitStruct.Pin = USB_SENSE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(USB_SENSE_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : USR_LED_Pin */
   GPIO_InitStruct.Pin = USR_LED_Pin;
