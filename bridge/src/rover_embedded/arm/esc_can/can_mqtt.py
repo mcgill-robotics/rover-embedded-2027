@@ -17,7 +17,9 @@ The payload of the MQTT message is just the data in hex.
 
 from __future__ import annotations
 
+import argparse
 import logging
+import signal
 import threading
 
 import can
@@ -122,3 +124,39 @@ class CanMqttBridge:
         self._stop.set()
         self._client.disconnect()
         self._client.loop_stop()
+
+
+# systemd stops a service by sending SIGTERM. We turn it into the same
+# KeyboardInterrupt that Ctrl+C makes, so both get cleaned up the same way.
+def _raise_keyboard_interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Open the CAN bus and the MQTT client, then bridge them until stopped."""
+    parser = argparse.ArgumentParser(description="Bridge the arm CAN bus to MQTT.")
+    parser.add_argument("--channel", default="can0",
+                        help="SocketCAN channel: can0 on the Pi, vcan0 for testing "
+                             "(bitrates are set with `ip link`, not here)")
+    parser.add_argument("--host", default=DEFAULT_MQTT_HOST, help="MQTT broker host")
+    parser.add_argument("--port", type=int, default=DEFAULT_MQTT_PORT, help="MQTT broker port")
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    signal.signal(signal.SIGTERM, _raise_keyboard_interrupt)
+
+    bus = can.Bus(interface="socketcan", channel=args.channel, fd=True) # We use FDCAN (duh)
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="arm-can-bridge")
+    bridge = CanMqttBridge(bus, client) # The actual goated line of code
+
+    try:
+        bridge.start(args.host, args.port)
+        log.info("Bridging %s <-> mqtt://%s:%d",
+                 args.channel, args.host, args.port)
+        bridge.run()          # blocks here until Ctrl+C / SIGTERM
+    except KeyboardInterrupt:
+        log.info("Stopping")
+    finally:                  # runs no matter how we got out
+        bridge.stop()
+        bus.shutdown()

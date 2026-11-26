@@ -48,7 +48,7 @@ power-board-cli = "rover_embedded.power.power_board_cli:main"
 pantilt-ctl = "rover_embedded.comms.pantilt_tui:run"
 
 # Arm scripts
-# Yeah, nothing here at the moment.
+arm-can-bridge = "rover_embedded.arm.esc_can.can_mqtt:main"
 
 [build-system]
 requires = ["hatchling >= 1.26"]
